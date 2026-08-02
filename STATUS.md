@@ -1,161 +1,123 @@
 # Moroku Enrich — Build Status & Handover
 
-_Last updated: 2026-08-02. Phase 1 (core service). Reader is assumed to have the
-spec (`docs/moroku-enrich-spec.md`, now the corrected HTTP API v2 copy) and this
-repo, but none of the originating conversation. Read this file top to bottom
-before writing code._
+_Last updated: 2026-08-03. Phase 1 (core service) + extensions 001/002 applied.
+Reader is assumed to have the spec (`docs/moroku-enrich-spec.md`), the two
+extension specs (`docs/extensions/`), and this repo, but none of the originating
+conversation. Read this file top to bottom before writing code._
 
 ---
 
 ## 1. What is built and working
 
-`npm run build` (`tsc --build`, all projects), `npm test` (**92 pass, 2 todo**)
-and `npm run synth` (`cdk synth`, dev) are all **green**. Nothing is deployed;
-no AWS resources exist.
+`npm run build` (`tsc --build`, all projects), `npm test` (**125 pass, 0 todo**)
+and `npm run synth` (`cdk synth`, dev) are all **green**. Nothing is deployed; no
+AWS resources exist. The first dev deploy is the next gate (after review), and it
+starts by verifying `aws sts get-caller-identity` == 932027117528.
 
 - **Monorepo** — npm workspaces: `packages/{taxonomy,engine,service-lib}`,
   `services/{authorizer,categorise,corrections,read,classifier,promotion}`,
-  `infra`. TypeScript strict, Vitest, Prettier.
-- **Taxonomy v1** (`packages/taxonomy`) — classifications frozen, the two
-  non-expense outcomes defined, helpers + `taxonomyDocument()`.
-  `EXPENSE_CATEGORIES` intentionally **empty** (blocked input — see §2).
-- **Merchant normaliser** (`packages/engine`) — unchanged from last session, 37
-  tests.
-- **Signal chain** (`packages/engine`, spec §4) — full priority chain wired
-  end-to-end and **pure** (injected `LookupContext`, zero AWS): exclusion → user
-  override → tenant override → MCC → dictionary → rules (empty floor) → llm_cache
-  (trust threshold) → conservative fallback. Fallback forces
-  `other_expenses`/`essential`/`["unverified"]`, overriding the taxonomy default;
-  a test proves it **never emits `discretionary`**.
-- **MCC table** (`packages/engine`) — typed ISO 18245 → taxonomy, confidence
-  0.95, fuel 5541/5542 → `vehicle_running`; every target via the placeholder
-  registry. Representative cross-section (~90 codes), extensible to the full ~300.
-- **Placeholder category registry** (`packages/engine/src/categories.ts`) — the
-  sanctioned bridge for decision §9.1 (see §3.1).
-- **service-lib** (`packages/service-lib`) — HTTP + DynamoDB glue so the engine
-  stays pure: zod schemas, `Repository` (DynamoDB impl + `InMemoryRepository`),
-  batched `LookupContext`, tenant-context extraction, EMF metrics, the pure
-  learning-tier logic, key encoding, config loader.
-- **Lambda authorizer** (`services/authorizer`) — **real**: bearer `mk_live_…` →
-  SHA-256 → `tenants` GetItem → tenant context. Never stores/echoes raw keys.
-- **API handlers** (`services/{categorise,corrections,read}`) — real, zod-
-  validated, injectable (`makeXHandler(repo, cfg)` + a default export):
-  - `POST /v1/categorise` — batch, per-tier batched lookups, engine chain,
-    summary (`confident_pct`, `by_source`), enqueues unknown merchants.
-  - `POST /v1/corrections` — learning tiers (user immediate; tenant ≥ 3 users or
-    adviser/admin; global → promotion_queue candidate only), immutable log,
-    Idempotency-Key replay. **No merchants_global write path exists** (guard).
-  - `read` — `/v1/taxonomy`, `/v1/merchants/{match_key}`, `/v1/overrides`,
-    `DELETE /v1/overrides/{id}` (logs a revocation), `/v1/health` (unauth).
-- **CDK stack** (`infra`, spec §6) — HTTP API v2 + Lambda authorizer (5 min
-  identity cache) + stage throttling; six DynamoDB tables incl. `tenants`
-  (PK `key_hash`, GSI `tenant_id-index`); SQS queue + DLQ; six Lambdas
-  (nodejs22.x, arm64, esbuild, aws-sdk externalised); CloudWatch dashboard +
-  fallback-rate alarm (> 15%); SSM config `/moroku-enrich/dev/config/*`;
-  least-privilege per-Lambda IAM; everything tagged `project:moroku-enrich`,
-  `stage:dev`.
+  `infra`, `scripts`. TypeScript strict, Vitest, Prettier.
+- **Taxonomy v1** (`packages/taxonomy`) — **15 verbatim Kanopi categories** +
+  default classifications (ext-002 §1). Guard test asserts `.toBe(15)`. Plus the
+  non-expense outcomes `transfer` / `uncategorised_credit`.
+- **Engine** (`packages/engine`, pure, zero AWS):
+  - Merchant normaliser (37 tests).
+  - Full spec §4 signal chain: exclusion → **credit** → user/tenant override →
+    MCC → dictionary → rules → llm_cache → fallback. Injected `LookupContext`.
+  - **Credit branch**: amount > 0 → `uncategorised_credit`, `excluded: true`,
+    source `credit`, confidence 1.0 (income recognition proper is phase 2).
+    Excluded results (transfers + credits) are removed from `confident_pct` and
+    the fallback-rate denominators.
+  - Fallback forces `other_expenses`/`essential`/`["unverified"]`; a test proves
+    it never emits `discretionary`.
+  - **Category registry reconciled** — every `CATEGORY.*` binds a real taxonomy
+    id; no `__pending__` sentinels; reconciliation tripwire passes.
+  - **MCC table** completed against real ids (fuel 5541/5542 → vehicle_running,
+    7011 → other_expenses, 6513 → rent, …); every row targets a valid category.
+  - **Rules tier** — merged word-bounded Kanopi chain (2 priority cues + 14
+    rules) at conf 0.7; all six ext-002 §3 deviations pinned; baseline
+    regressions green through the full chain.
+- **service-lib** (`packages/service-lib`) — HTTP/DynamoDB glue: zod schemas,
+  `Repository` (DynamoDB + `InMemoryRepository`), batched `LookupContext`, tenant
+  context, EMF metrics, learning-tier logic, key encoding, config, **usage
+  metering** (`incrementUsage`), **tenant-key issuance** (`tenant-keys.ts`).
+- **Lambda authorizer** (`services/authorizer`) — bearer `mk_test_`/`mk_live_` →
+  SHA-256 → `tenants`; passes plan + environment; denies suspended (cache-lag
+  documented). Pure helpers in `authorize.ts`.
+- **API handlers** (`services/{categorise,corrections,read}`) — zod-validated,
+  injectable. categorise + corrections meter usage atomically (test/live split).
+- **CDK stack** (`infra`) — HTTP API v2 + authorizer; **seven** DynamoDB tables
+  (spec §5 five + `tenants` + `usage`); SQS + DLQ; six Lambdas; dashboard +
+  fallback-rate alarm; SSM config; least-privilege IAM; tagged
+  `project:moroku-enrich`, `stage:dev`.
+- **Admin scripts** (`scripts`, run with tsx) — `issue-tenant-key.ts` (default
+  `--plan internal`, refuses external plans without `--allow-external`, prints
+  plaintext once, stores hash only), `revoke-tenant-key.ts` (suspend by key_hash
+  or tenant_id). Kanopi seed commands documented in `scripts/README.md`.
 
-Git: on `master`, several commits. Nothing deployed.
+## 2. What is deferred / not yet built (nothing is blocked)
 
-## 2. What is blocked / deliberately incomplete
+- **`classifier` and `promotion` Lambdas are stubs** — phase 2 (Bedrock Haiku,
+  `LLM_TIER_ENABLED=false`) and the async global-corroboration/approval worker
+  (cross-tenant ≥2-tenant + competing-share enforcement → merchants_global).
+- **Income recognition** (spec §2 phase 2) — credits are returned as
+  `uncategorised_credit`; salary/benefit recognition is later.
+- **ext-001 §4 deferred items** — trial-corrections quarantine, developer-
+  agreement workflow, one-time secret-link delivery, invoicing, ops portal. The
+  schema already carries every field these need; do NOT build them now.
+- **Seed data** — `merchants_global` seeding and the Kanopi tenant rows are a
+  deploy-time step (scripts + seed exist; run at first deploy).
 
-- **`EXPENSE_CATEGORIES` is empty** (blocked: verbatim 16-category list). Guard
-  test `packages/taxonomy/test/taxonomy.test.ts` asserts `.toBe(0)` with an
-  `it.todo`. When the list lands: populate verbatim, **flip `.toBe(0)` →
-  `.toBe(16)` and the `it.todo` into a real test**, then reconcile the
-  placeholder registry (§3.1) — the `categories.test.ts` guard flips
-  automatically once the taxonomy is non-empty.
-- **Rules tier is an empty ruleset** (blocked: merged Kanopi regex). `RULES = []`
-  in `packages/engine/src/rules.ts`; the tier is wired and tested, so the real
-  chains drop in without touching `applyRules` or the chain.
-- **`classifier` and `promotion` Lambdas are stubs** — phase 2 (Bedrock Haiku;
-  `LLM_TIER_ENABLED=false`) and the async global-corroboration/approval worker.
-- **Credit handling deferred.** Spec §2 says v1 returns credits as
-  `uncategorised_credit`; the engine chain (per the kickoff's explicit tier list)
-  does not yet branch on credits, and the source-label for that outcome is
-  unresolved. Debits categorise correctly; a credit currently falls through to
-  fallback. Wire at the handler boundary once the source label is decided. See §4.
-- **MCC table is a representative subset**, not the full ~300 rows (structure +
-  lookup + fuel cue are done; remaining rows are additive).
+## 3. Key decisions & mechanisms (context for reviewers)
 
-## 3. Decisions taken this session (context for reviewers)
+- **Credit branch** wired like transfers (excluded from spend denominators) so it
+  never pollutes `confident_pct` or the fallback-rate alarm. Source enum gained
+  `credit`.
+- **ext-002 §0: taxonomy is 15, not 16.** Guards flipped to 15. The category
+  registry (`packages/engine/src/categories.ts`) is the single source of truth;
+  MCC/rules/fallback reference `CATEGORY.*`. Concepts absent from taxonomy v1
+  (retail, travel, personal care, government, …) resolve to `other_expenses`.
+- **`other_expenses`** defaults `discretionary` as a taxonomy default; the
+  fallback path still forces `essential` + `unverified`. Rule/dictionary hits on
+  it keep the discretionary default.
+- **Rules** match on source-category code OR the lowercased haystack
+  (source_category_description + normalised key), word-bounded (fixes the
+  substring-`includes` "current" → rent bug). Priority cues evaluate first.
+- **ext-001 usage table** — PK `tenant_id` / SK `<environment>#<month>` so test
+  and live counters are distinct rows under one tenant_id (satisfies acceptance
+  test 3 while staying per-month). `incrementUsage` is one atomic ADD per request.
+- **Key gate** — the only key-creation path (the issuance script) enforces
+  internal-only access; `assertPlanAllowed` refuses external plans without
+  `--allow-external`. Keys stored SHA-256-hashed only.
+- **service-lib / scripts** keep AWS out of `packages/engine` (still pure).
+- **infra `exactOptionalPropertyTypes` relaxed for `infra` only** (aws-cdk-lib
+  types); zod `.default()` fields are coalesced in handlers.
 
-The stale-spec warning is **resolved**: `docs/moroku-enrich-spec.md` is the
-corrected HTTP API v2 copy and is committed. Spec §6 is authoritative again.
+## 4. Open questions — none outstanding
 
-### 3.1 Placeholder category mechanism (decision §9.1)
-`packages/engine/src/categories.ts` is the **single source of truth** for
-category ids used by structural code (MCC, rules, fallback). Ids given directly
-by the spec/kickoff are bound now (`other_expenses`, `vehicle_running`,
-`dining_entertainment`, `groceries`); every other concept is a `__pending__:`
-sentinel that cannot be mistaken for a real id. `reconcileCategories()` + a gated
-test are the tripwire: once `EXPENSE_CATEGORIES` is populated they assert no
-sentinel remains and every bound value is a real id. Rebinding is a one-file
-change; no tier logic moves. `EXPENSE_CATEGORIES` itself stays empty.
-
-### 3.2 Other decisions
-- **`service-lib` package** holds all AWS/HTTP glue so `packages/engine` stays
-  pure (no AWS imports). Handlers are thin and injectable for testing.
-- **Six Lambdas.** The kickoff's "four Lambdas" = spec §6's compute set
-  (categorise, corrections, classifier, promotion). Added: the **authorizer**
-  (its own function) and a **read** handler (serves taxonomy/merchants/overrides/
-  health — the scaffolded `services/read` dir). Nothing from spec §6 dropped.
-- **Idempotency store** lives in the `corrections_log` table under a namespaced
-  `IDEMP#<tenant>` partition (TTL `expires_at`), so no 7th table was added.
-  `corrections` Lambda therefore has read+write on `corrections_log`.
-- **Overrides key encoding** (single-table, `pk`/`sk`): user =
-  `T#<tenant>#U#<user> / M#<match_key>`; tenant = `T#<tenant> / TENANT#<match_key>`;
-  agreement aggregate = `AGG#<tenant> / <match_key>#<category>`. All in
-  `packages/service-lib/src/keys.ts`.
-- **Global corroboration** is accumulated per correction into a promotion_queue
-  document (pure `mergeCorroboration`); the handler only enqueues **candidates**.
-  Rigorous ≥2-tenant / competing-share enforcement + manual approval belongs to
-  the promotion **worker** (reads `corrections_log`) — not yet built.
-- **infra `exactOptionalPropertyTypes` relaxed for the `infra` project only**
-  (aws-cdk-lib widget types trip it); `packages/*` stay fully strict.
-- **zod `.default()` fields** infer as `T | undefined` in this zod version;
-  handlers coalesce (`?? "consumer"`) rather than trust the inferred type.
-- **CDK account/region default to 932027117528 / ap-southeast-2** so `cdk synth`
-  runs offline. A real deploy still resolves creds — verify the account first.
-
-## 4. Open questions
-
-- **`other_expenses` — RESOLVED.** One of the 16 categories; keeps its taxonomy
-  default on rule/dictionary paths; the **fallback path** forces `essential` and
-  flags `unverified`. Implemented + tested.
-- **Credit → `uncategorised_credit` source label.** The response `source` enum
-  (spec §3.1) has no credit tier. Decide how a returned credit is labelled before
-  wiring credit handling (see §2).
-- **MCC → classification while taxonomy is empty.** MCC/rule results derive
-  classification from the taxonomy default, which is unavailable until
-  `EXPENSE_CATEGORIES` lands, so they currently fall back to `essential`. Correct
-  automatically once the taxonomy is populated — no code change.
+Both prior flags are resolved: the credit branch (step 1) and the blocked
+taxonomy/rules inputs (ext-002). No open questions block the build.
 
 ## 5. Next concrete steps, in order
 
-1. **When the blocked inputs land:** populate `EXPENSE_CATEGORIES` verbatim; flip
-   the taxonomy guard (`.toBe(16)` + real test); reconcile the placeholder
-   registry (rebind `__pending__` concepts, confirm bound ids); port the merged
-   Kanopi ruleset into `RULES`. Pin fuel/cinema priority cues with zero-regression
-   tests (spec §8).
-2. **Deploy to dev** (only after the above make the smoke test meaningful):
-   `aws sts get-caller-identity` **must be 932027117528** (build brief);
-   **stop and ask before `cdk deploy` or creating any AWS resource.** Then seed
-   `tenants` (a hashed `mk_live_…` key) + `merchants_global`, and smoke-test.
-3. **Phase 2** — classifier (Bedrock Haiku, cache keyed `match_key#prompt_version`,
+1. **First dev deploy (the review gate).** `aws sts get-caller-identity` **must
+   be 932027117528** / ap-southeast-2 (build brief). **Stop and ask before
+   `cdk deploy` or creating any AWS resource.** Then seed Kanopi keys (both
+   environments, `scripts/README.md`) + `merchants_global`, and smoke-test.
+2. **Phase 2** — classifier (Bedrock Haiku, cache keyed `match_key#prompt_version`,
    reject < 0.6, merchant-strings-only) and the promotion worker (cross-tenant
    corroboration, competing-share, manual approval → merchants_global).
+3. **Kanopi cutover** (spec §7) — shared client, delete duplicate engines,
+   corrections wiring, learning-table migration, report trust number.
 
 ## 6. Gotchas
 
-- **Taxonomy guard + placeholder reconcile test** both flip the moment
-  `EXPENSE_CATEGORIES` becomes non-empty — update the assertion (§2) or the suite
-  goes red.
 - **`cdk` is not global** — use `npm run synth` / `npx cdk` (infra devDep).
 - **Build before synth** — esbuild bundles handlers from the workspace packages'
-  `dist`, so `npm run build` must run first (already part of a clean flow).
-- **AWS identity** — account `932027117528` (ap-southeast-2). Re-verify before any
-  deploy.
+  `dist`, so `npm run build` must run first.
+- **AWS identity** — account `932027117528` (ap-southeast-2). Re-verify before
+  any deploy.
+- **Scripts** need AWS creds + the deployed `tenants` table (run after deploy).
 - **Bedrock Haiku in ap-southeast-2** unconfirmed — check during phase 2;
   cross-region inference is the sanctioned fallback (LLM sees merchant strings only).
 - Vitest prints EMF metric JSON to stdout during handler tests — benign.
@@ -165,6 +127,6 @@ change; no tier logic moves. `EXPENSE_CATEGORIES` itself stays empty.
 ```
 npm install
 npm run build   # tsc --build, all projects — must stay green
-npm test        # 94 tests (92 pass, 2 todo)
+npm test        # 125 tests, all pass
 npm run synth   # cdk synth (dev) — must pass; does NOT deploy
 ```
