@@ -35,7 +35,7 @@ The taxonomy is versioned (`taxonomy_version`) and served by `GET /v1/taxonomy` 
 
 ## 3. API contract
 
-Base URL `https://enrich.moroku.com`. Auth: per-tenant API key (`Authorization: Bearer mk_live_…`) via API Gateway usage plans; OAuth client-credentials later if a customer requires it. All endpoints JSON. All writes idempotent via `Idempotency-Key` header.
+Base URL `https://enrich.moroku.com`. Auth: per-tenant bearer key (`Authorization: Bearer mk_live_…`) validated by a **Lambda authorizer on an HTTP API (v2)** — not REST-API usage plans, which HTTP APIs don't support. Keys are stored SHA-256-hashed in a `tenants` table (tenant id, name, status, plan); the authorizer resolves key → tenant context, and its result is cached ~5 minutes keyed on the token. Per-tenant rate limiting is a soft quota enforced in the authorizer (counters in DynamoDB) with stage-level throttling as the hard backstop — real metering arrives with the second tenant. OAuth client-credentials later if a customer requires it. All endpoints JSON. All writes idempotent via `Idempotency-Key` header.
 
 ### 3.1 `POST /v1/categorise` — batch categorisation
 
@@ -184,6 +184,7 @@ Evaluated in priority order; first hit wins. Every input path gets the full chai
 
 | Table | PK / SK | Contents |
 |---|---|---|
+| `tenants` | `key_hash` | tenant_id, name, status (`active` \| `suspended`), plan, quota, created_at — the Lambda authorizer's lookup table; GSI on tenant_id for admin listing |
 | `merchants_global` | `match_key` | canonical_name, category, classification, confidence, source (`llm` \| `promoted` \| `seed`), correction_count, ambiguous flag, updated_at |
 | `overrides` | `tenant#user_ref` / `match_key` | user-scope learning; SK pattern `TENANT#match_key` for tenant scope rows |
 | `corrections_log` | `tenant` / `ts#uuid` | append-only; full before/after payload; the training dataset |
@@ -198,7 +199,7 @@ MCC table and taxonomy ship as versioned code (they change with releases, not at
 
 Boring on purpose; near-zero idle cost; a Claude Code-sized build.
 
-- **API Gateway** (HTTP API) — API-key auth via usage plans, per-tenant rate limits, request validation.
+- **API Gateway** (HTTP API v2) — Lambda authorizer per §3 (bearer key → hashed lookup in `tenants`, ~5 min identity-based cache); stage-level throttling as backstop, per-tenant soft quotas in the authorizer. Request validation happens at the handler boundary with zod — HTTP APIs lack REST-API model validation, and zod gives better error messages anyway.
 - **Lambda** (Node 22 / TypeScript) — `categorise` handler (sync), `corrections` handler (sync), `llm-classifier` worker (SQS-triggered), `promotion` worker.
 - **DynamoDB** — tables above, on-demand billing.
 - **SQS** — unknown-merchant queue (with DLQ).
