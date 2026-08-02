@@ -1,0 +1,11 @@
+{
+  "name": "@moroku-enrich/service-corrections",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Moroku Enrich corrections Lambda handler.",
+  "scripts": {
+    "build": "tsc --build",
+    "test": "vitest run"
+  }
+}

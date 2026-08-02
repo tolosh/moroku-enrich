@@ -1,0 +1,11 @@
+{
+  "name": "@moroku-enrich/service-categorise",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Moroku Enrich categorise Lambda handler.",
+  "scripts": {
+    "build": "tsc --build",
+    "test": "vitest run"
+  }
+}

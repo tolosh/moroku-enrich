@@ -1,0 +1,11 @@
+{
+  "name": "@moroku-enrich/service-classifier",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Moroku Enrich classifier Lambda handler.",
+  "scripts": {
+    "build": "tsc --build",
+    "test": "vitest run"
+  }
+}

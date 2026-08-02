@@ -1,0 +1,15 @@
+{
+  "//": "Infra is CommonJS (standard for CDK apps run via tsx/ts-node). It imports no workspace packages, so there is no ESM/CJS interop with packages/*.",
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "rootDir": ".",
+    "outDir": "dist",
+    "types": ["node"],
+    "verbatimModuleSyntax": false,
+    "exactOptionalPropertyTypes": false
+  },
+  "//exactOptional": "aws-cdk-lib's IWidget/props types declare optionals as `T | undefined`, which trips exactOptionalPropertyTypes. Relaxed for infra (CDK) only; packages/* stay fully strict.",
+  "include": ["bin/**/*.ts", "lib/**/*.ts"]
+}

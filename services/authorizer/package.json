@@ -1,0 +1,11 @@
+{
+  "name": "@moroku-enrich/service-authorizer",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Moroku Enrich authorizer Lambda handler.",
+  "scripts": {
+    "build": "tsc --build",
+    "test": "vitest run"
+  }
+}

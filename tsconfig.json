@@ -1,5 +1,15 @@
 {
   "//": "Solution file. Add service/infra references here as each gains a tsconfig.json + source. Kept minimal so `tsc --build` stays green.",
   "files": [],
-  "references": [{ "path": "packages/taxonomy" }, { "path": "packages/engine" }]
+  "references": [
+    { "path": "packages/taxonomy" },
+    { "path": "packages/engine" },
+    { "path": "infra" },
+    { "path": "services/authorizer" },
+    { "path": "services/categorise" },
+    { "path": "services/corrections" },
+    { "path": "services/read" },
+    { "path": "services/classifier" },
+    { "path": "services/promotion" }
+  ]
 }
