@@ -132,6 +132,39 @@ describe("signal chain — priority ordering (spec §4, first hit wins)", () => 
   });
 });
 
+describe("credits (spec §2 — v1 debits-only)", () => {
+  it("returns uncategorised_credit, excluded, for a positive amount", () => {
+    const r = categorise({ ...base, description: "SALARY ACME PTY LTD", amount: 4200 }, EMPTY_LOOKUPS);
+    expect(r.source).toBe("credit");
+    expect(r.category).toBe("uncategorised_credit");
+    expect(r.excluded).toBe(true);
+    expect(r.confidence).toBe(1.0);
+    expect(r.classification).toBe("essential"); // taxonomy default, as for transfer
+  });
+
+  it("does not run the expense tiers for a credit (no override/MCC/dictionary wins)", () => {
+    const r = categorise(
+      { ...base, amount: 100, mcc: "5541", user_ref: "u1" },
+      lookups({
+        user: { category: CATEGORY.DINING_ENTERTAINMENT },
+        dictionary: { category: CATEGORY.GROCERIES, confidence: 0.95 },
+      }),
+    );
+    expect(r.source).toBe("credit");
+  });
+
+  it("an explicit transfer still wins over the credit branch", () => {
+    const r = categorise({ ...base, description: "TRANSFER FROM SAVINGS", amount: 250 }, EMPTY_LOOKUPS);
+    expect(r.source).toBe("exclusion");
+    expect(r.category).toBe("transfer");
+  });
+
+  it("a debit (negative amount) is unaffected and reaches the normal tiers", () => {
+    const r = categorise({ ...base, amount: -50, mcc: "5541" }, EMPTY_LOOKUPS);
+    expect(r.source).toBe("mcc");
+  });
+});
+
 describe("conservative fallback (spec §4 step 7, kickoff)", () => {
   it("returns other_expenses / essential / unverified for an unknown merchant", () => {
     const r = categorise({ ...base, description: "ZZZ UNKNOWN MERCHANT" }, EMPTY_LOOKUPS);

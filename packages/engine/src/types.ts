@@ -10,6 +10,7 @@ import type { NormalisedMerchant } from "./normaliser.js";
 /** The tier that produced a result (spec §3.1 `source`). First hit wins. */
 export type Source =
   | "exclusion"
+  | "credit"
   | "user_override"
   | "tenant_override"
   | "mcc"

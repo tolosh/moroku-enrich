@@ -43,7 +43,9 @@ export function emitCategoriseMetrics(
   summary: CategoriseSummary,
   results: readonly EnrichResult[],
 ): void {
-  const count = summary.count || 1;
+  // Fallback rate is over spend (non-excluded) transactions only, so transfers
+  // and credits never inflate or deflate the alarm — matching confident_pct.
+  const spend = results.reduce((n, r) => (r.excluded ? n : n + 1), 0) || 1;
   const fallback = summary.by_source.fallback ?? 0;
   emit(
     namespace,
@@ -55,7 +57,7 @@ export function emitCategoriseMetrics(
     ],
     {
       ConfidentPct: Number((summary.confident_pct * 100).toFixed(2)),
-      FallbackRate: Number(((fallback / count) * 100).toFixed(2)),
+      FallbackRate: Number(((fallback / spend) * 100).toFixed(2)),
       Categorised: summary.count,
     },
   );
@@ -68,7 +70,6 @@ export function emitCategoriseMetrics(
       { SourceCount: n ?? 0 },
     );
   }
-  void results;
 }
 
 /** Emit correction volume (spec §6 dashboard). */

@@ -33,6 +33,8 @@ import type {
 
 /** Category returned by the exclusion tier (spec §4 step 1). */
 const TRANSFER_CATEGORY = "transfer";
+/** Category returned for credits (spec §2; v1 debits-only, income is phase 2). */
+const CREDIT_CATEGORY = "uncategorised_credit";
 /** Fallback bucket (kickoff: one of the 16, forced essential on this path). */
 const FALLBACK_CATEGORY = CATEGORY.OTHER_EXPENSES;
 /** The conservative fallback is always essential — never discretionary (spec §1.3, kickoff). */
@@ -105,6 +107,23 @@ export function categorise(
       "exclusion",
       TRANSFER_CATEGORY,
       resolveClassification(TRANSFER_CATEGORY),
+      1.0,
+      merchant,
+      { excluded: true, ...common },
+    );
+  }
+
+  // 1b — Credits. v1 processes debits; a credit (amount > 0) that is not an
+  // explicit transfer is returned as uncategorised_credit, excluded like a
+  // transfer so it never reaches the expense tiers or the fallback (which would
+  // pollute confident_pct and the fallback-rate alarm). Classification is the
+  // taxonomy default, exactly as for the transfer outcome. Income recognition
+  // proper is phase 2 (spec §2).
+  if (typeof input.amount === "number" && input.amount > 0) {
+    return build(
+      "credit",
+      CREDIT_CATEGORY,
+      resolveClassification(CREDIT_CATEGORY),
       1.0,
       merchant,
       { excluded: true, ...common },

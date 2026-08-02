@@ -76,6 +76,27 @@ describe("POST /v1/categorise handler", () => {
     expect(body.results[0].category).toBe("groceries");
   });
 
+  it("returns a credit as excluded and does not enqueue it", async () => {
+    const repo = new InMemoryRepository();
+    const res = await makeCategoriseHandler(repo, cfg)(
+      event({
+        transactions: [
+          { id: "1", description: "PAYROLL ACME", amount: 5000 },
+          { id: "2", description: "ZZZ MYSTERY SHOP", amount: -9 },
+        ],
+      }),
+    );
+    const body = JSON.parse(res.body as string);
+    const credit = body.results.find((r: { id: string }) => r.id === "1");
+    expect(credit.source).toBe("credit");
+    expect(credit.category).toBe("uncategorised_credit");
+    expect(credit.excluded).toBe(true);
+    // confident_pct denominator is spend only: the lone debit fell back → 0%.
+    expect(body.summary.confident_pct).toBe(0);
+    // only the unknown debit is queued, never the credit.
+    expect(repo.enqueued).toEqual(["zzz mystery shop"]);
+  });
+
   it("401s without tenant context", async () => {
     const repo = new InMemoryRepository();
     const res = await makeCategoriseHandler(repo, cfg)(event({ transactions: [] }, null));
