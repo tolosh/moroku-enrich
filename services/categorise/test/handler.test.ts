@@ -61,6 +61,16 @@ describe("POST /v1/categorise handler", () => {
     expect(repo.enqueued).toContain("zzz mystery shop");
   });
 
+  it("enqueues unknown merchants even when the LLM tier is off (spec §4)", async () => {
+    const repo = new InMemoryRepository();
+    const offCfg = { ...cfg, llmTierEnabled: false };
+    await makeCategoriseHandler(repo, offCfg)(
+      event({ transactions: [{ id: "1", description: "ZZZ MYSTERY SHOP", amount: -9 }] }),
+    );
+    // Enqueue is unconditional; the classifier's event source is what's gated.
+    expect(repo.enqueued).toContain("zzz mystery shop");
+  });
+
   it("prefers a user override over MCC", async () => {
     const repo = new InMemoryRepository();
     await repo.putUserOverride("tenant-1", "u1", "coles express", "groceries");

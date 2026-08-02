@@ -232,8 +232,17 @@ export class MorokuEnrichStack extends Stack {
     llmCache.grantReadWriteData(classifierFn);
     merchantsGlobal.grantReadData(classifierFn);
     correctionsLog.grantReadData(classifierFn); // few-shot examples from corrections
+    // Consumer is gated by the LLM-tier flag: while off, the event source is
+    // disabled so unknown-merchant keys accumulate on the queue unconsumed
+    // (spec §4 — categorise still enqueues them). Flip the SSM flag + redeploy
+    // to enable classification.
+    const llmTierEnabled = configValues["llm-tier-enabled"] === "true";
     classifierFn.addEventSource(
-      new SqsEventSource(unknownMerchantQueue, { batchSize: 10, reportBatchItemFailures: true }),
+      new SqsEventSource(unknownMerchantQueue, {
+        batchSize: 10,
+        reportBatchItemFailures: true,
+        enabled: llmTierEnabled,
+      }),
     );
     // Bedrock Haiku (+ cross-region inference fallback). Scoped to Anthropic models.
     classifierFn.addToRolePolicy(

@@ -62,23 +62,25 @@ export function makeCategoriseHandler(repo: Repository, cfg: Config) {
       return { id: txn.id, ...r };
     });
 
-    // First sighting of an unknown merchant → queued for one-time LLM classification.
+    // First sighting of an unknown merchant → its key goes onto the queue
+    // (spec §4, unconditionally). The classifier is what respects
+    // LLM_TIER_ENABLED: while the tier is off its SQS event source is disabled,
+    // so keys accumulate on the queue unconsumed until the tier is switched on.
     const uniqueUnknown = [
       ...new Set(results.filter((r) => r.source === "fallback").map((r) => r.merchant.match_key)),
     ];
-    let llmTriggered = 0;
-    if (cfg.llmTierEnabled && uniqueUnknown.length > 0) {
+    if (uniqueUnknown.length > 0) {
       await repo.enqueueUnknownMerchants(uniqueUnknown);
-      llmTriggered = uniqueUnknown.length;
     }
 
     const summary = summarise(results, cfg.lowConfidenceThreshold);
     emitCategoriseMetrics(cfg.metricNamespace, cfg.stage, summary, results);
 
     // Usage metering (ext-001): atomic per-request counters, split test/live.
+    // llm_classifications_triggered is the classifier's COGS counter (it
+    // increments when it actually classifies), so categorise does not touch it.
     const increments: Record<string, number> = {
       transactions_categorised: results.length,
-      llm_classifications_triggered: llmTriggered,
     };
     for (const [source, n] of Object.entries(summary.by_source)) {
       increments[`by_source_${source}`] = n ?? 0;
