@@ -11,6 +11,7 @@ export interface Config {
     correctionsLog: string;
     llmCache: string;
     promotionQueue: string;
+    usage: string;
   };
   unknownMerchantQueueUrl: string;
   metricNamespace: string;
@@ -40,6 +41,7 @@ export function loadConfig(): Config {
       correctionsLog: process.env.TABLE_CORRECTIONS_LOG ?? "",
       llmCache: process.env.TABLE_LLM_CACHE ?? "",
       promotionQueue: process.env.TABLE_PROMOTION_QUEUE ?? "",
+      usage: process.env.TABLE_USAGE ?? "",
     },
     unknownMerchantQueueUrl: process.env.UNKNOWN_MERCHANT_QUEUE_URL ?? "",
     metricNamespace: process.env.METRIC_NAMESPACE ?? "MorokuEnrich",

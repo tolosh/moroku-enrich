@@ -96,6 +96,9 @@ export class MorokuEnrichStack extends Stack {
     // `cache_key` value is `match_key#prompt_version`.
     const llmCache = table("LlmCacheTable", "llm-cache", "cache_key");
     const promotionQueue = table("PromotionQueueTable", "promotion-queue", "match_key");
+    // Usage metering (ext-001). SK value is `<environment>#<month>` so test/live
+    // counters are distinct rows under one tenant_id.
+    const usage = table("UsageTable", "usage", "tenant_id", "sk");
 
     // ---------------------------------------------------------------------
     // SQS — unknown-merchant queue + DLQ (spec §4 LLM tier, §6).
@@ -148,6 +151,7 @@ export class MorokuEnrichStack extends Stack {
       TABLE_CORRECTIONS_LOG: correctionsLog.tableName,
       TABLE_LLM_CACHE: llmCache.tableName,
       TABLE_PROMOTION_QUEUE: promotionQueue.tableName,
+      TABLE_USAGE: usage.tableName,
       UNKNOWN_MERCHANT_QUEUE_URL: unknownMerchantQueue.queueUrl,
       METRIC_NAMESPACE,
       // Config mirrored to env for hot-path reads; SSM remains the source of truth.
@@ -202,6 +206,7 @@ export class MorokuEnrichStack extends Stack {
     overrides.grantReadData(categoriseFn);
     llmCache.grantReadData(categoriseFn);
     unknownMerchantQueue.grantSendMessages(categoriseFn);
+    usage.grantWriteData(categoriseFn); // atomic ADD counters (ext-001)
 
     // --- corrections (sync): writes overrides, appends log, queues promotions.
     const correctionsFn = makeFn("CorrectionsFn", "corrections");
@@ -211,6 +216,7 @@ export class MorokuEnrichStack extends Stack {
     correctionsLog.grantReadWriteData(correctionsFn);
     merchantsGlobal.grantReadData(correctionsFn);
     promotionQueue.grantReadWriteData(correctionsFn);
+    usage.grantWriteData(correctionsFn); // atomic ADD counters (ext-001)
 
     // --- read: taxonomy / merchants / overrides / health.
     const readFn = makeFn("ReadFn", "read");

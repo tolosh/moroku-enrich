@@ -151,6 +151,15 @@ export function makeCorrectionsHandler(repo: Repository, cfg: Config) {
     if (idemKey) await repo.putIdempotent(tenant.tenant_id, idemKey, response);
     emitCorrectionMetrics(cfg.metricNamespace, cfg.stage, results.length);
 
+    // Usage metering (ext-001) — after the loop so an idempotent replay (which
+    // returns early above) never double-counts.
+    await repo.incrementUsage(
+      tenant.tenant_id,
+      tenant.environment,
+      new Date().toISOString().slice(0, 7),
+      { corrections_received: results.length },
+    );
+
     return json(200, response);
   } catch (err) {
     return toErrorResponse(err);

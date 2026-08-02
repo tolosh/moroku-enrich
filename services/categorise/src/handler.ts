@@ -63,15 +63,32 @@ export function makeCategoriseHandler(repo: Repository, cfg: Config) {
     });
 
     // First sighting of an unknown merchant → queued for one-time LLM classification.
-    if (cfg.llmTierEnabled) {
-      const unknown = results
-        .filter((r) => r.source === "fallback")
-        .map((r) => r.merchant.match_key);
-      await repo.enqueueUnknownMerchants(unknown);
+    const uniqueUnknown = [
+      ...new Set(results.filter((r) => r.source === "fallback").map((r) => r.merchant.match_key)),
+    ];
+    let llmTriggered = 0;
+    if (cfg.llmTierEnabled && uniqueUnknown.length > 0) {
+      await repo.enqueueUnknownMerchants(uniqueUnknown);
+      llmTriggered = uniqueUnknown.length;
     }
 
     const summary = summarise(results, cfg.lowConfidenceThreshold);
     emitCategoriseMetrics(cfg.metricNamespace, cfg.stage, summary, results);
+
+    // Usage metering (ext-001): atomic per-request counters, split test/live.
+    const increments: Record<string, number> = {
+      transactions_categorised: results.length,
+      llm_classifications_triggered: llmTriggered,
+    };
+    for (const [source, n] of Object.entries(summary.by_source)) {
+      increments[`by_source_${source}`] = n ?? 0;
+    }
+    await repo.incrementUsage(
+      tenant.tenant_id,
+      tenant.environment,
+      new Date().toISOString().slice(0, 7),
+      increments,
+    );
 
     return json(200, { results, summary });
   } catch (err) {

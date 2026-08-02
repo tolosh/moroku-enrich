@@ -11,6 +11,7 @@ import {
   llmCacheKey,
   tenantOverrideKey,
   userOverrideKey,
+  usageSortKey,
 } from "./keys.js";
 import { emptyBatchedLookups, keyStr, type BatchedLookups } from "./lookups.js";
 import type {
@@ -36,6 +37,7 @@ export class InMemoryRepository implements Repository {
   readonly corroboration = new Map<string, CorroborationItem>();
   readonly log: (CorrectionLogEntry & { ts: string })[] = [];
   readonly enqueued: string[] = [];
+  readonly usage = new Map<string, Record<string, number>>();
   private readonly idempotency = new Map<string, unknown>();
 
   async batchGetLookups(
@@ -168,6 +170,21 @@ export class InMemoryRepository implements Repository {
 
   async putIdempotent(tenant: string, key: string, response: unknown): Promise<void> {
     this.idempotency.set(`${tenant}|${key}`, response);
+  }
+
+  async incrementUsage(
+    tenantId: string,
+    environment: string,
+    month: string,
+    increments: Readonly<Record<string, number>>,
+  ): Promise<void> {
+    const id = `${tenantId}|${usageSortKey(environment, month)}`;
+    const row = this.usage.get(id) ?? {};
+    for (const [attr, delta] of Object.entries(increments)) {
+      if (delta === 0) continue;
+      row[attr] = (row[attr] ?? 0) + delta;
+    }
+    this.usage.set(id, row);
   }
 }
 

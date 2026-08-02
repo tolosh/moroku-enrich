@@ -99,5 +99,23 @@ describe("POST /v1/corrections handler (spec §3.2)", () => {
     expect(first.body).toBe(second.body);
     // The replay did not append a second log row.
     expect(repo.log).toHaveLength(1);
+    // …nor double-count usage (metering runs only on the non-replayed path).
+    const received = [...repo.usage.values()].reduce(
+      (n, r) => n + (r["corrections_received"] ?? 0),
+      0,
+    );
+    expect(received).toBe(1);
+  });
+
+  it("meters corrections_received (ext-001)", async () => {
+    const repo = new InMemoryRepository();
+    await makeCorrectionsHandler(repo, cfg)(
+      event({ corrections: [correction("u1"), correction("u2")] }),
+    );
+    const received = [...repo.usage.values()].reduce(
+      (n, r) => n + (r["corrections_received"] ?? 0),
+      0,
+    );
+    expect(received).toBe(2);
   });
 });

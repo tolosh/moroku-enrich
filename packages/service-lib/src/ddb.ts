@@ -29,6 +29,7 @@ import {
   tenantOverrideKey,
   userOverrideKey,
   userOverridePkForTenant,
+  usageSortKey,
 } from "./keys.js";
 import { keyStr, type BatchedLookups } from "./lookups.js";
 
@@ -110,6 +111,18 @@ export interface Repository {
 
   getIdempotent(tenant: string, key: string): Promise<unknown | undefined>;
   putIdempotent(tenant: string, key: string, response: unknown): Promise<void>;
+
+  /**
+   * Atomically add to the per-tenant/per-month usage counters (ext-001 §1).
+   * One UpdateItem with ADD — never read-modify-write. Zero increments are
+   * skipped. `environment` (test|live) is folded into the row key.
+   */
+  incrementUsage(
+    tenantId: string,
+    environment: string,
+    month: string,
+    increments: Readonly<Record<string, number>>,
+  ): Promise<void>;
 }
 
 function chunk<T>(arr: readonly T[], size: number): T[][] {
@@ -417,6 +430,37 @@ export class DynamoRepository implements Repository {
           response,
           expires_at: Math.floor(Date.now() / 1000) + 86_400,
         },
+      }),
+    );
+  }
+
+  async incrementUsage(
+    tenantId: string,
+    environment: string,
+    month: string,
+    increments: Readonly<Record<string, number>>,
+  ): Promise<void> {
+    const entries = Object.entries(increments).filter(([, v]) => v !== 0);
+    if (entries.length === 0) return;
+    const names: Record<string, string> = { "#env": "environment", "#month": "month" };
+    const values: Record<string, unknown> = {
+      ":env": environment,
+      ":month": month,
+      ":t": nowIso(),
+    };
+    const adds: string[] = [];
+    entries.forEach(([attr, delta], i) => {
+      names[`#a${i}`] = attr;
+      values[`:v${i}`] = delta;
+      adds.push(`#a${i} :v${i}`);
+    });
+    await this.doc.send(
+      new UpdateCommand({
+        TableName: this.cfg.tables.usage,
+        Key: { tenant_id: tenantId, sk: usageSortKey(environment, month) },
+        UpdateExpression: `ADD ${adds.join(", ")} SET #env = :env, #month = :month, updated_at = :t`,
+        ExpressionAttributeNames: names,
+        ExpressionAttributeValues: values,
       }),
     );
   }

@@ -8,6 +8,8 @@ import type { APIGatewayProxyEventV2WithLambdaAuthorizer } from "aws-lambda";
 export interface TenantContext {
   tenant_id: string;
   plan: string;
+  /** `test` | `live` — usage metering is split by environment (ext-001). */
+  environment: string;
   status: string;
   name: string;
 }
@@ -22,7 +24,8 @@ export function tenantFrom(event: AuthedEvent): TenantContext | undefined {
   if (!ctx || !ctx.tenant_id) return undefined;
   return {
     tenant_id: String(ctx.tenant_id),
-    plan: String(ctx.plan ?? "standard"),
+    plan: String(ctx.plan ?? "internal"),
+    environment: String(ctx.environment ?? "live"),
     status: String(ctx.status ?? "active"),
     name: String(ctx.name ?? ""),
   };

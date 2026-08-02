@@ -10,7 +10,8 @@
   "workspaces": [
     "packages/*",
     "services/*",
-    "infra"
+    "infra",
+    "scripts"
   ],
   "scripts": {
     "build": "tsc --build",

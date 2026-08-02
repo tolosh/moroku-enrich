@@ -103,6 +103,37 @@ describe("POST /v1/categorise handler", () => {
     expect(res.statusCode).toBe(401);
   });
 
+  it("meters transactions_categorised by exactly N, incl. concurrently (acceptance 4)", async () => {
+    const repo = new InMemoryRepository();
+    const handler = makeCategoriseHandler(repo, cfg);
+    const body = {
+      transactions: [
+        { id: "1", description: "A", amount: -1, mcc: "5411" },
+        { id: "2", description: "B", amount: -2, mcc: "5541" },
+        { id: "3", description: "C", amount: -3 },
+      ],
+    };
+    await Promise.all([handler(event(body)), handler(event(body))]);
+    const total = [...repo.usage.values()].reduce(
+      (n, r) => n + (r["transactions_categorised"] ?? 0),
+      0,
+    );
+    expect(total).toBe(6); // 2 calls × 3 transactions, atomic ADD
+    const row = [...repo.usage.values()][0]!;
+    expect(row["by_source_mcc"]).toBeGreaterThan(0);
+  });
+
+  it("meters test and live usage as distinct rows (acceptance 3)", async () => {
+    const repo = new InMemoryRepository();
+    const handler = makeCategoriseHandler(repo, cfg);
+    const body = { transactions: [{ id: "1", description: "A", amount: -1, mcc: "5411" }] };
+    await handler(event(body, { tenant_id: "kanopi", environment: "test", status: "active", plan: "internal", name: "Kanopi" }));
+    await handler(event(body, { tenant_id: "kanopi", environment: "live", status: "active", plan: "internal", name: "Kanopi" }));
+    const keys = [...repo.usage.keys()];
+    expect(keys.some((k) => k.includes("test#"))).toBe(true);
+    expect(keys.some((k) => k.includes("live#"))).toBe(true);
+  });
+
   it("400s on an invalid body", async () => {
     const repo = new InMemoryRepository();
     const res = await makeCategoriseHandler(repo, cfg)(event({ transactions: [] }));

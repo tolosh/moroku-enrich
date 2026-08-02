@@ -11,6 +11,7 @@
     { "path": "services/corrections" },
     { "path": "services/read" },
     { "path": "services/classifier" },
-    { "path": "services/promotion" }
+    { "path": "services/promotion" },
+    { "path": "scripts" }
   ]
 }

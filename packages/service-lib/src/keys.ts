@@ -40,3 +40,12 @@ export function llmCacheKey(matchKey: string, promptVersion: string): string {
 export function correctionLogSk(ts: string, uuid: string): string {
   return `${ts}#${uuid}`;
 }
+
+/**
+ * `usage` table SK (ext-001 §1). Environment is folded into the sort key so a
+ * tenant's test and live counters are distinct rows under one tenant_id
+ * (ext-001 §3 test 3), while staying per-month.
+ */
+export function usageSortKey(environment: string, month: string): string {
+  return `${environment}#${month}`;
+}
