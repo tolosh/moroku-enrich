@@ -1,18 +1,39 @@
 # Moroku Enrich — Build Status & Handover
 
-_Last updated: 2026-08-03. Phase 1 (core service) + extensions 001/002 applied.
-Reader is assumed to have the spec (`docs/moroku-enrich-spec.md`), the two
-extension specs (`docs/extensions/`), and this repo, but none of the originating
-conversation. Read this file top to bottom before writing code._
+_Last updated: 2026-08-03. Phase 1 (core service) + extensions 001/002 applied
+and **deployed to dev**. Reader is assumed to have the spec
+(`docs/moroku-enrich-spec.md`), the two extension specs (`docs/extensions/`), and
+this repo, but none of the originating conversation. Read this file top to bottom
+before writing code._
 
 ---
 
+## 0. Deployment (dev) — LIVE
+
+First dev deploy done 2026-08-03 into the Moroku Dev Sandbox
+(**932027117528** / **ap-southeast-2**) via CDK. Smoke test passed end-to-end.
+
+- **Stack:** `MorokuEnrich-dev` (bootstrap qualifier `hnb659fds`).
+- **API base URL:** `https://rspyx0mz34.execute-api.ap-southeast-2.amazonaws.com`
+- **Dashboard:** `moroku-enrich-dev` · **Queue:** `moroku-enrich-dev-unknown-merchant`
+- **Seeded tenant:** Kanopi (`tenant_id: kanopi`), plan `internal`, status
+  `active`, in **both** `test` and `live` environments. Keys are held in the team
+  password manager (never stored in this repo).
+- **Deploy identity:** IAM user `moroku-enrich-deploy` — assumes the CDK
+  `cdk-hnb659fds-*` roles (needs `sts:AssumeRole` on them) **and** has scoped
+  DynamoDB data access + `sqs`/`cloudwatch` read for seeding/verification. Both
+  policy statements must coexist (a data-only policy that drops the assume-role
+  statement breaks `cdk deploy`).
+- **LLM tier is OFF** (`/moroku-enrich/dev/config/llm-tier-enabled=false`): the
+  classifier's SQS event source is **disabled**, so unknown-merchant keys
+  accumulate on the queue unconsumed. Flip the SSM flag + redeploy to enable.
+- **Redeploy:** `AWS_PROFILE=enrich-deploy npm run build && (cd infra && npx cdk deploy --context stage=dev --require-approval never)`.
+
 ## 1. What is built and working
 
-`npm run build` (`tsc --build`, all projects), `npm test` (**125 pass, 0 todo**)
-and `npm run synth` (`cdk synth`, dev) are all **green**. Nothing is deployed; no
-AWS resources exist. The first dev deploy is the next gate (after review), and it
-starts by verifying `aws sts get-caller-identity` == 932027117528.
+`npm run build` (`tsc --build`, all projects), `npm test` (**126 pass, 0 todo**)
+and `npm run synth` (`cdk synth`, dev) are all **green**, and the stack is
+deployed to dev (§0).
 
 - **Monorepo** — npm workspaces: `packages/{taxonomy,engine,service-lib}`,
   `services/{authorizer,categorise,corrections,read,classifier,promotion}`,
@@ -92,6 +113,9 @@ starts by verifying `aws sts get-caller-identity` == 932027117528.
 - **service-lib / scripts** keep AWS out of `packages/engine` (still pure).
 - **infra `exactOptionalPropertyTypes` relaxed for `infra` only** (aws-cdk-lib
   types); zod `.default()` fields are coalesced in handlers.
+- **Unknown-merchant enqueue is unconditional** (spec §4); the *classifier's*
+  SQS event source is what's gated by the LLM-tier flag. Verified in dev: with
+  the tier off, a first-sighting unknown lands on the queue and sits unconsumed.
 
 ## 4. Open questions — none outstanding
 
@@ -100,13 +124,14 @@ taxonomy/rules inputs (ext-002). No open questions block the build.
 
 ## 5. Next concrete steps, in order
 
-1. **First dev deploy (the review gate).** `aws sts get-caller-identity` **must
-   be 932027117528** / ap-southeast-2 (build brief). **Stop and ask before
-   `cdk deploy` or creating any AWS resource.** Then seed Kanopi keys (both
-   environments, `scripts/README.md`) + `merchants_global`, and smoke-test.
+1. **First dev deploy — DONE** (§0). Stack live, Kanopi seeded (test+live),
+   smoke test green. Still outstanding: seed `merchants_global` with Kanopi's
+   brand lists (a data step; the service works without it, just more fallbacks).
 2. **Phase 2** — classifier (Bedrock Haiku, cache keyed `match_key#prompt_version`,
    reject < 0.6, merchant-strings-only) and the promotion worker (cross-tenant
-   corroboration, competing-share, manual approval → merchants_global).
+   corroboration, competing-share, manual approval → merchants_global). Turning
+   the tier on = flip `/moroku-enrich/dev/config/llm-tier-enabled` + redeploy
+   (re-enables the classifier's SQS event source).
 3. **Kanopi cutover** (spec §7) — shared client, delete duplicate engines,
    corrections wiring, learning-table migration, report trust number.
 
@@ -127,6 +152,6 @@ taxonomy/rules inputs (ext-002). No open questions block the build.
 ```
 npm install
 npm run build   # tsc --build, all projects — must stay green
-npm test        # 125 tests, all pass
+npm test        # 126 tests, all pass
 npm run synth   # cdk synth (dev) — must pass; does NOT deploy
 ```
