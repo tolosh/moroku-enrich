@@ -52,17 +52,40 @@ describe("taxonomy v1 — frozen invariants (spec §2)", () => {
   });
 });
 
-describe("taxonomy v1 — expense category list (decision §9.1)", () => {
-  // Enabled once the 16 Kanopi categories are lifted verbatim from their code.
-  // Kept as `todo` so the suite stays green while the list is outstanding, but
-  // the outstanding work stays visible in every test run.
-  it.todo(
-    `has the ${EXPECTED_EXPENSE_CATEGORY_COUNT} Kanopi expense categories (populate EXPENSE_CATEGORIES first)`,
-  );
+describe("taxonomy v1 — expense category list (decision §9.1, ext-002 §0)", () => {
+  it(`has exactly the ${EXPECTED_EXPENSE_CATEGORY_COUNT} verbatim Kanopi expense categories`, () => {
+    expect(EXPENSE_CATEGORIES.length).toBe(EXPECTED_EXPENSE_CATEGORY_COUNT);
+    expect(EXPENSE_CATEGORIES.length).toBe(15);
+  });
 
-  it("does not (yet) invent any category names", () => {
-    // Guard against accidental invention: until the real list lands, the
-    // expense registry must stay empty. Flip this to `toBe(16)` when populated.
-    expect(EXPENSE_CATEGORIES.length).toBe(0);
+  it("has the exact verbatim ids and default classifications (ext-002 §1)", () => {
+    const byId = Object.fromEntries(
+      EXPENSE_CATEGORIES.map((c) => [c.id, c.default_classification]),
+    );
+    expect(byId).toEqual({
+      mortgage: "financial_commitment",
+      rent: "financial_commitment",
+      loan_repayment: "financial_commitment",
+      groceries: "essential",
+      utilities: "essential",
+      vehicle_running: "essential",
+      transport: "essential",
+      insurance: "essential",
+      strata: "essential",
+      education: "essential",
+      subscriptions: "discretionary",
+      dining_entertainment: "discretionary",
+      clothing: "discretionary",
+      healthcare: "essential",
+      other_expenses: "discretionary",
+    });
+  });
+
+  it("every expense category is a real, valid classification", () => {
+    for (const c of EXPENSE_CATEGORIES) {
+      expect(isValidClassification(c.default_classification)).toBe(true);
+      expect(c.kind).toBe("expense");
+      expect(c.excluded).toBe(false);
+    }
   });
 });

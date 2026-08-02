@@ -39,17 +39,41 @@ export interface CategoryDef {
 }
 
 /**
- * The 16 Kanopi expense categories × 3 classifications, frozen verbatim as
- * taxonomy v1 (decision §9.1).
+ * The 15 Kanopi expense categories, frozen verbatim as taxonomy v1
+ * (decision §9.1, corrected to 15 by ext-002 §0). Identifiers are exactly as in
+ * Kanopi's engine; default classifications are as that engine assigns them
+ * (ext-002 §1). Labels are display strings only.
  *
- * TODO(taxonomy): populate from Kanopi's code once the exact list is supplied.
- * Do NOT invent identifiers here. The completeness test in
- * test/taxonomy.test.ts fails while this is empty — that is the intended guard.
+ * Note: `other_expenses` defaults `discretionary` as a taxonomy default; the
+ * conservative-fallback path still forces `essential` + `unverified` at
+ * assignment time (kickoff ruling). Rule/dictionary hits on `other_expenses`
+ * keep the discretionary default.
  */
 export const EXPENSE_CATEGORIES: readonly CategoryDef[] = [
-  // e.g. { id: "groceries", label: "Groceries", default_classification: "essential",
-  //        excluded: false, kind: "expense" },
+  cat("mortgage", "Mortgage", "financial_commitment"),
+  cat("rent", "Rent", "financial_commitment"),
+  cat("loan_repayment", "Loan Repayment", "financial_commitment"),
+  cat("groceries", "Groceries", "essential"),
+  cat("utilities", "Utilities", "essential"),
+  cat("vehicle_running", "Vehicle Running", "essential"),
+  cat("transport", "Transport", "essential"),
+  cat("insurance", "Insurance", "essential"),
+  cat("strata", "Strata", "essential"),
+  cat("education", "Education", "essential"),
+  cat("subscriptions", "Subscriptions", "discretionary"),
+  cat("dining_entertainment", "Dining & Entertainment", "discretionary"),
+  cat("clothing", "Clothing", "discretionary"),
+  cat("healthcare", "Healthcare", "essential"),
+  cat("other_expenses", "Other Expenses", "discretionary"),
 ];
+
+function cat(
+  id: string,
+  label: string,
+  default_classification: Classification,
+): CategoryDef {
+  return { id, label, default_classification, excluded: false, kind: "expense" };
+}
 
 /**
  * Additive non-expense outcomes today's Kanopi engine drops on the floor and
@@ -72,8 +96,8 @@ export const NON_EXPENSE_OUTCOMES: readonly CategoryDef[] = [
   },
 ];
 
-/** Expected count of expense categories per decision §9.1. */
-export const EXPECTED_EXPENSE_CATEGORY_COUNT = 16;
+/** Expected count of expense categories (decision §9.1, corrected to 15 by ext-002 §0). */
+export const EXPECTED_EXPENSE_CATEGORY_COUNT = 15;
 
 /** All categories (expense + non-expense). */
 export function allCategories(): readonly CategoryDef[] {

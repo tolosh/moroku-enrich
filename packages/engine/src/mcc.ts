@@ -6,13 +6,11 @@
  * facts: fuel 5541/5542 → vehicle_running regardless of "Coles Express"
  * (kickoff). Confidence is a flat 0.95 (spec §4).
  *
- * Every target is a `CATEGORY.*` reference, not a literal, so the verbatim
- * Kanopi ids slot in with no change to this table's structure or logic
- * (decision §9.1). The set below is a representative, extensible cross-section
- * of ISO 18245 — organised by concept so filling it out to the full ~300 rows
- * is additive. `classification` is intentionally NOT stored here: it derives
- * from the taxonomy default for the resolved category, so it, too, becomes
- * correct automatically once EXPENSE_CATEGORIES lands.
+ * Completed against the verbatim 15-category taxonomy (ext-002 §5). Every target
+ * is a real taxonomy id via `CATEGORY.*`. `classification` is NOT stored here: it
+ * derives from the taxonomy default for the resolved category. Taxonomy v1 has no
+ * travel/retail/personal-care categories, so those ISO groups map to
+ * `other_expenses` (e.g. lodging 7011 → other_expenses, ext-002 deviation 4).
  */
 import { CATEGORY, type CategoryRef } from "./categories.js";
 import { MCC_TABLE_VERSION } from "./version.js";
@@ -35,76 +33,74 @@ const MCC_GROUPS: readonly MccGroup[] = [
   },
   {
     category: CATEGORY.DINING_ENTERTAINMENT,
-    // Restaurants/bars/fast-food + entertainment MCCs (kickoff: → dining_entertainment).
+    // Eating/drinking + entertainment (kickoff: entertainment MCCs → dining_entertainment).
     codes: [
-      "5811", "5812", "5813", "5814", // eating & drinking places
-      "7832", "7841", // cinemas / video
-      "7922", "7929", "7911", // theatrical, bands, dance
-      "7996", "7998", "7999", // amusement, aquariums, recreation
-      "7933", "7992", // bowling, golf courses
+      "5811", "5812", "5813", "5814",
+      "7832", "7841", "7829",
+      "7922", "7929", "7911", "7997",
+      "7996", "7998", "7999", "7933", "7992", "7941",
     ],
   },
   {
     category: CATEGORY.VEHICLE_RUNNING,
     // Fuel is the canonical priority cue (kickoff: 5541/5542 → vehicle_running).
-    codes: ["5172", "5541", "5542", "5983", "5533", "7538", "7549", "7523"],
+    codes: ["5172", "5541", "5542", "5983", "5533", "5531", "5532", "7538", "7549", "7534", "7523"],
     note: "fuel 5541/5542 override 'Coles Express'-style merchant names",
   },
   {
     category: CATEGORY.TRANSPORT,
-    codes: ["4111", "4112", "4121", "4131", "4784", "4789"],
-  },
-  {
-    category: CATEGORY.TRAVEL,
-    codes: ["4511", "4722", "7011", "7512", "7513", "4411", "4457"],
+    codes: ["4111", "4112", "4121", "4131", "4784", "4789", "4011", "4304", "7512", "7513", "7519"],
   },
   {
     category: CATEGORY.UTILITIES,
-    codes: ["4812", "4814", "4899", "4900"],
-  },
-  {
-    category: CATEGORY.HEALTH_MEDICAL,
-    codes: [
-      "5122", "5912", // pharmacy / drugs
-      "8011", "8021", "8031", "8041", "8042", "8043", "8049",
-      "8062", "8071", "8099",
-    ],
-  },
-  {
-    category: CATEGORY.SHOPPING_RETAIL,
-    codes: ["5300", "5310", "5311", "5331", "5399", "5722", "5732", "5734", "5735", "5942", "5945"],
-  },
-  {
-    category: CATEGORY.CLOTHING,
-    codes: ["5611", "5621", "5631", "5641", "5651", "5655", "5661", "5691", "5699", "5948"],
-  },
-  {
-    category: CATEGORY.HOME_HARDWARE,
-    codes: ["5200", "5211", "5231", "5251", "5261", "5712", "5713", "5714", "5719"],
-  },
-  {
-    category: CATEGORY.PERSONAL_CARE,
-    codes: ["5977", "7230", "7297", "7298"],
-  },
-  {
-    category: CATEGORY.EDUCATION,
-    codes: ["8211", "8220", "8241", "8244", "8249", "8299"],
+    codes: ["4812", "4814", "4821", "4899", "4900"],
   },
   {
     category: CATEGORY.INSURANCE,
-    codes: ["5960", "6300", "6381"],
+    codes: ["5960", "6300", "6381", "6399"],
   },
   {
-    category: CATEGORY.PROFESSIONAL_SERVICES,
-    codes: ["7276", "7392", "7399", "8111", "8911", "8931", "8999"],
+    category: CATEGORY.HEALTHCARE,
+    codes: [
+      "5122", "5292", "5295", "5912", "5975", "5976",
+      "8011", "8021", "8031", "8041", "8042", "8043", "8049",
+      "8050", "8062", "8071", "8099",
+    ],
   },
   {
-    category: CATEGORY.GOVERNMENT,
-    codes: ["9211", "9222", "9223", "9311", "9399", "9402"],
+    category: CATEGORY.CLOTHING,
+    codes: ["5611", "5621", "5631", "5641", "5651", "5655", "5661", "5681", "5691", "5697", "5698", "5699", "5948", "5949"],
   },
   {
-    category: CATEGORY.CHARITY_GIFTS,
-    codes: ["5947", "8398"],
+    category: CATEGORY.EDUCATION,
+    codes: ["8211", "8220", "8241", "8244", "8249", "8299", "8351"],
+  },
+  {
+    category: CATEGORY.RENT,
+    // Real-estate agents / property managers — rent (ext-002 §5 anchor 6513).
+    codes: ["6513"],
+  },
+  {
+    // Taxonomy v1 has no travel/retail/home/personal-care/services/government
+    // categories — these ISO groups fall to the discretionary catch-all.
+    category: CATEGORY.OTHER_EXPENSES,
+    codes: [
+      // travel & lodging (deviation 4: lodging → other_expenses)
+      "3000", "3501", "4411", "4457", "4511", "4722", "4723", "7011", "7012", "7032", "7033",
+      // general retail / department / electronics / hobby
+      "5200", "5211", "5231", "5251", "5261", "5300", "5309", "5310", "5311", "5331",
+      "5399", "5712", "5713", "5714", "5718", "5719", "5722", "5732", "5733", "5734",
+      "5735", "5931", "5940", "5941", "5942", "5943", "5944", "5945", "5946", "5947",
+      "5970", "5992", "5999",
+      // personal care & services
+      "5977", "7230", "7297", "7298", "7210", "7211", "7216", "7251", "7261",
+      // professional / business services
+      "7276", "7277", "7311", "7333", "7338", "7339", "7372", "7392", "7393", "7399",
+      "8111", "8911", "8931", "8999",
+      // government / non-profit / misc
+      "8398", "8641", "8651", "8661", "8675", "8699", "9211", "9222", "9223", "9311",
+      "9399", "9402", "9405",
+    ],
   },
 ];
 
