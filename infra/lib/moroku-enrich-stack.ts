@@ -206,7 +206,9 @@ export class MorokuEnrichStack extends Stack {
     // --- corrections (sync): writes overrides, appends log, queues promotions.
     const correctionsFn = makeFn("CorrectionsFn", "corrections");
     overrides.grantReadWriteData(correctionsFn);
-    correctionsLog.grantWriteData(correctionsFn);
+    // Read+write: appends the log AND reads/writes idempotency records stored
+    // under a namespaced `IDEMP#<tenant>` partition of the same table.
+    correctionsLog.grantReadWriteData(correctionsFn);
     merchantsGlobal.grantReadData(correctionsFn);
     promotionQueue.grantReadWriteData(correctionsFn);
 

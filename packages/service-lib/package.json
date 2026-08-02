@@ -1,0 +1,24 @@
+{
+  "name": "@moroku-enrich/service-lib",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "HTTP + DynamoDB glue for the Lambda handlers: zod schemas, repository, tenant context, metrics. Depends on the pure engine; keeps AWS out of packages/engine.",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc --build",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@moroku-enrich/engine": "0.1.0",
+    "@moroku-enrich/taxonomy": "0.1.0",
+    "zod": "^3.24.1"
+  }
+}

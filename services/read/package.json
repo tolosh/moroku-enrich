@@ -7,5 +7,10 @@
   "scripts": {
     "build": "tsc --build",
     "test": "vitest run"
+  },
+  "dependencies": {
+    "@moroku-enrich/service-lib": "0.1.0",
+    "@moroku-enrich/engine": "0.1.0",
+    "@moroku-enrich/taxonomy": "0.1.0"
   }
 }

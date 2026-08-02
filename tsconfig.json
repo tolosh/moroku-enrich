@@ -4,6 +4,7 @@
   "references": [
     { "path": "packages/taxonomy" },
     { "path": "packages/engine" },
+    { "path": "packages/service-lib" },
     { "path": "infra" },
     { "path": "services/authorizer" },
     { "path": "services/categorise" },

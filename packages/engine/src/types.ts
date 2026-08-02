@@ -18,23 +18,27 @@ export type Source =
   | "llm_cache"
   | "fallback";
 
-/** One transaction as accepted by the engine (subset of spec §3.1 request). */
+/**
+ * One transaction as accepted by the engine (subset of spec §3.1 request).
+ * Optional fields tolerate an explicit `undefined` so a zod-parsed request maps
+ * in directly under exactOptionalPropertyTypes.
+ */
 export interface CategoriseInput {
   /** Client-supplied opaque id, echoed back by the handler. */
-  id?: string;
+  id?: string | undefined;
   description: string;
   /** ISO 18245 MCC — open banking has it, statements don't. */
-  mcc?: string;
+  mcc?: string | undefined;
   /** Signed; negative = debit. */
-  amount?: number;
-  currency?: string;
-  date?: string;
+  amount?: number | undefined;
+  currency?: string | undefined;
+  date?: string | undefined;
   /** e.g. DocuScan's category code — feeds the exclusion tier. */
-  source_category_code?: string;
-  source_category_description?: string;
-  account_type?: string;
+  source_category_code?: string | undefined;
+  source_category_description?: string | undefined;
+  account_type?: string | undefined;
   /** Opaque per-tenant user id — enables user-scoped overrides. */
-  user_ref?: string;
+  user_ref?: string | undefined;
 }
 
 /** A user- or tenant-scoped override row (spec §4 steps 2 / 2b). */
