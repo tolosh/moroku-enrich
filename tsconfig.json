@@ -1,0 +1,12 @@
+{
+  "files": [],
+  "references": [
+    { "path": "packages/engine" },
+    { "path": "packages/taxonomy" },
+    { "path": "services/categorise" },
+    { "path": "services/corrections" },
+    { "path": "services/read" },
+    { "path": "services/classifier" },
+    { "path": "infra" }
+  ]
+}
