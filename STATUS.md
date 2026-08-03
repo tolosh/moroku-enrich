@@ -34,14 +34,22 @@ First dev deploy done 2026-08-03 into the Moroku Dev Sandbox
   DynamoDB data access + `sqs`/`cloudwatch` read for seeding/verification. Both
   policy statements must coexist (a data-only policy that drops the assume-role
   statement breaks `cdk deploy`).
-- **LLM tier is OFF** (`/moroku-enrich/dev/config/llm-tier-enabled=false`): the
-  classifier's SQS event source is **disabled**, so unknown-merchant keys
-  accumulate on the queue unconsumed. Flip the SSM flag + redeploy to enable.
-- **Redeploy:** `AWS_PROFILE=enrich-deploy npm run build && (cd infra && npx cdk deploy --context stage=dev --require-approval never)`.
+- **LLM tier is ON in dev** (phase 2, 2026-08-03). Claude **Haiku 4.5** via the
+  Australia cross-region inference profile `au.anthropic.claude-haiku-4-5-20251001-v1:0`
+  (Sydney doesn't offer Haiku 4.5 directly). Classifier drained the initial
+  115-message corpus → 36 distinct merchants cached, 0 DLQ. Enabled by a
+  **deploy-time context flag**, not committed state — see Redeploy.
+- **Redeploy (keeps the LLM tier on):**
+  `AWS_PROFILE=enrich-deploy npm run build && (cd infra && npx cdk deploy --context stage=dev --context llmTier=on --context bedrockModelId=au.anthropic.claude-haiku-4-5-20251001-v1:0 --require-approval never)`.
+  ⚠️ A plain redeploy **without** `--context llmTier=on` turns the tier back off
+  (disables the classifier's SQS event source). Bedrock model access for Claude
+  Haiku 4.5 must stay enabled in the account (ap-southeast-2); the classifier
+  role already has `bedrock:InvokeModel` on Anthropic Haiku models + inference
+  profiles.
 
 ## 1. What is built and working
 
-`npm run build` (`tsc --build`, all projects), `npm test` (**126 pass, 0 todo**)
+`npm run build` (`tsc --build`, all projects), `npm test` (**136 pass, 0 todo**)
 and `npm run synth` (`cdk synth`, dev) are all **green**, and the stack is
 deployed to dev (§0).
 
@@ -88,9 +96,15 @@ deployed to dev (§0).
 
 ## 2. What is deferred / not yet built (nothing is blocked)
 
-- **`classifier` and `promotion` Lambdas are stubs** — phase 2 (Bedrock Haiku,
-  `LLM_TIER_ENABLED=false`) and the async global-corroboration/approval worker
+- **`classifier` is live** (phase 2, Bedrock Haiku 4.5 — §0). The **`promotion`
+  Lambda is still a stub** — the async global-corroboration/approval worker
   (cross-tenant ≥2-tenant + competing-share enforcement → merchants_global).
+- **Classifier follow-ups (from the first real drain, not blocking):**
+  it re-invokes Bedrock per message (no cache-check before InvokeModel), so
+  duplicate match_keys re-classify — add a `GetItem` short-circuit to cut cost.
+  Normaliser gaps surfaced by real data: `EFTPOS ` prefix and `cardxx1234`
+  suffix aren't stripped (e.g. `eftpos the boathouse palm beach` vs
+  `the boathouse palm beach` cache as two keys).
 - **Income recognition** (spec §2 phase 2) — credits are returned as
   `uncategorised_credit`; salary/benefit recognition is later.
 - **ext-001 §4 deferred items** — trial-corrections quarantine, developer-
@@ -162,6 +176,6 @@ taxonomy/rules inputs (ext-002). No open questions block the build.
 ```
 npm install
 npm run build   # tsc --build, all projects — must stay green
-npm test        # 126 tests, all pass
+npm test        # 136 tests, all pass
 npm run synth   # cdk synth (dev) — must pass; does NOT deploy
 ```
