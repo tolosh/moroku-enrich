@@ -14,7 +14,17 @@ First dev deploy done 2026-08-03 into the Moroku Dev Sandbox
 (**932027117528** / **ap-southeast-2**) via CDK. Smoke test passed end-to-end.
 
 - **Stack:** `MorokuEnrich-dev` (bootstrap qualifier `hnb659fds`).
-- **API base URL:** `https://rspyx0mz34.execute-api.ap-southeast-2.amazonaws.com`
+- **Public URL:** `https://enrich.moroku.digital` (ext-003) — verified live over a
+  valid ACM cert (`CN=enrich.moroku.digital`, Amazon RSA 2048 M04, exp 2027-02-16).
+- **API base URL (fallback):** `https://rspyx0mz34.execute-api.ap-southeast-2.amazonaws.com`
+  — stays enabled; Kanopi's shadow client uses it until the `ENRICH_API_URL`
+  secret is switched to the custom domain.
+- **Custom domain (ext-003):** ACM cert DNS-validated via GoDaddy (external DNS).
+  Two public CNAMEs now live in the `moroku.digital` zone (GoDaddy Name form):
+  - validation: `_624aca0b0d7d98b1a0ec02a3d50f8b6c.enrich` → `…acm-validations.aws`
+  - alias: `enrich` → `d-myqy4nmd6b.execute-api.ap-southeast-2.amazonaws.com`
+  Regional apigw v2 DomainName (TLS 1.2) + root ApiMapping to `$default`; the
+  same construct re-points at a prod stage later by changing one mapping.
 - **Dashboard:** `moroku-enrich-dev` · **Queue:** `moroku-enrich-dev-unknown-merchant`
 - **Seeded tenant:** Kanopi (`tenant_id: kanopi`), plan `internal`, status
   `active`, in **both** `test` and `live` environments. Keys are held in the team
