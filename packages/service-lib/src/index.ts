@@ -14,3 +14,4 @@ export * from "./metrics.js";
 export * from "./ddb.js";
 export * from "./memory-repo.js";
 export * from "./tenant-keys.js";
+export * from "./migration.js";

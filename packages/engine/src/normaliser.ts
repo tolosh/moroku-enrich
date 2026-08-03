@@ -146,12 +146,32 @@ function stripGatewayPrefixes(input: string): string {
 }
 
 /**
+ * Leading POS / card-scheme prefix words (ext-004 §4): `EFTPOS`, `VISA`,
+ * `DEBIT`, and a bare `V`. Word-boundaried so `V8` / `VISALAND` are untouched.
+ */
+export const POS_PREFIX_TOKENS = ["EFTPOS", "VISA", "DEBIT", "V"] as const;
+const POS_PREFIX_RE = new RegExp(`^(?:${POS_PREFIX_TOKENS.join("|")})\\b\\s+`);
+
+function stripPosPrefixes(input: string): string {
+  let s = input;
+  // Loop to unwind stacked prefixes (e.g. "VISA DEBIT NAME").
+  for (let i = 0; i < 4; i++) {
+    const next = s.replace(POS_PREFIX_RE, "");
+    if (next === s) break;
+    s = next.trimStart();
+  }
+  return s;
+}
+
+/**
  * Remove card fragments (masked PANs) and embedded dates anywhere in the
  * string. These never carry merchant meaning.
  */
 function stripCardAndDateNoise(input: string): string {
   return (
     input
+      // card fragments with a `CARD` marker: CARDXX1234, CARD XX1234 (ext-004 §4)
+      .replace(/\bCARD\s?X{2,4}\d{2,6}\b/g, " ")
       // masked card fragments: XX1234, XXXX1234, X1234, ************1234
       .replace(/\bX{1,4}\d{2,6}\b/g, " ")
       .replace(/\*{2,}\d{2,6}\b/g, " ")
@@ -246,8 +266,10 @@ export function normaliseMerchant(rawDescription: string): NormalisedMerchant {
   // Stage 1: uppercase working copy.
   let work = normalised_from.toUpperCase();
 
-  // Stage 2: strip gateway prefixes.
+  // Stage 2: strip gateway prefixes, then leading POS/scheme prefixes
+  // (EFTPOS / VISA / DEBIT / V) — ext-004 §4.
   work = stripGatewayPrefixes(work);
+  work = stripPosPrefixes(work);
 
   // Stage 3: strip card fragments + embedded dates.
   work = stripCardAndDateNoise(work);

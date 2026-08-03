@@ -10,6 +10,7 @@
     "revoke-key": "tsx revoke-tenant-key.ts"
   },
   "dependencies": {
-    "@moroku-enrich/service-lib": "0.1.0"
+    "@moroku-enrich/service-lib": "0.1.0",
+    "@moroku-enrich/engine": "0.1.0"
   }
 }

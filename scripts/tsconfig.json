@@ -6,5 +6,8 @@
     "types": ["node"]
   },
   "include": ["*.ts", "lib/**/*.ts"],
-  "references": [{ "path": "../packages/service-lib" }]
+  "references": [
+    { "path": "../packages/engine" },
+    { "path": "../packages/service-lib" }
+  ]
 }

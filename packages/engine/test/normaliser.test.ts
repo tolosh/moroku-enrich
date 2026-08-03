@@ -128,3 +128,28 @@ describe("normaliseMerchant — determinism and safety", () => {
     expect(normaliseMerchant("  UBER TRIP  ").normalised_from).toBe("UBER TRIP");
   });
 });
+
+describe("normaliseMerchant — POS prefixes / card / date (ext-004 §4)", () => {
+  it("strips leading EFTPOS so the boathouse variants collapse to one key", () => {
+    expect(key("EFTPOS THE BOATHOUSE PALM BEACH")).toBe(key("THE BOATHOUSE PALM BEACH"));
+    expect(key("EFTPOS THE BOATHOUSE PALM BEACH")).toBe("the boathouse palm beach");
+  });
+
+  it.each([
+    ["VISA DEBIT WOOLWORTHS METRO", "woolworths metro"],
+    ["V UBER TRIP", "uber trip"],
+    ["DEBIT COLES 0123", "coles"],
+  ])("strips POS prefix %s -> %s", (input, expected) => {
+    expect(key(input)).toBe(expected);
+  });
+
+  it("does not eat prefixes that are part of a word (V8, VISALAND)", () => {
+    expect(key("V8 SUPERCARS SHOP")).toContain("v8");
+    expect(key("VISALAND ARCADE")).toContain("visaland");
+  });
+
+  it("strips date tokens and CARDxx fragments (petbarn example)", () => {
+    expect(key("PETBARN MONA VALE 17FEB CARDXX1234")).toBe("petbarn mona vale");
+    expect(key("PETBARN MONA VALE CARD XX1234")).toBe("petbarn mona vale");
+  });
+});

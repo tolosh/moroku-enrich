@@ -8,14 +8,17 @@
  * it is what makes replay (spec §6) deterministic: re-running a historical
  * batch on a pinned engine_version reproduces the report exactly.
  */
-export const NORMALISER_VERSION = "1.0.0";
+// 1.1.0 (ext-004 §4): strip EFTPOS/VISA/DEBIT/V POS prefixes + CARDxx fragments.
+// Re-keys affected dictionary/cache rows — see scripts/migrate-normaliser-keys.ts.
+export const NORMALISER_VERSION = "1.1.0";
 // 1.1.0: 4899 + digital-subscription MCCs (5815-5818, 5968) → subscriptions
 // (were misclassifying streaming as utilities/essential). Shadow-mode fix.
 export const MCC_TABLE_VERSION = "1.1.0";
-export const RULES_VERSION = "1.0.0";
+// 1.1.0 (ext-004 §1/§2): catch-all OTHD removed; bare-transfer exclusion.
+export const RULES_VERSION = "1.1.0";
 
 /** The released engine semver. Bump when any component below changes. */
-export const ENGINE_VERSION = "1.1.0";
+export const ENGINE_VERSION = "1.2.0";
 
 /**
  * The taxonomy version this engine build targets. The authoritative taxonomy
