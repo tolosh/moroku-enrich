@@ -13,18 +13,20 @@ import type { CategoriseInput } from "./types.js";
 export const EXCLUSION_CODES: ReadonlySet<string> = new Set(["TNFC", "OTFD"]);
 
 /**
- * Description patterns for transfers / ATM / cash advances. Kept deliberately
- * tight (word-boundaried) so ordinary merchant names are not swept up.
+ * Description patterns for transfers / ATM / cash advances. Word-boundaried so
+ * ordinary merchant names are not swept up. Bare `\bTRANSFER\b` / `\bTFR\b` per
+ * ext-002 §2's verbatim exclusion regex (ext-004 §2): `paypal transfer` and the
+ * like must terminate the chain before any LLM enqueue, so the cache never fills
+ * with transfer/withdrawal noise. Bare TRANSFER subsumes the earlier
+ * TO/FROM / FUNDS / INTERNAL variants.
  */
 export const EXCLUSION_PATTERNS: readonly RegExp[] = [
-  /\bATM\b/,
-  /\bCASH\s+ADV(?:ANCE)?\b/,
-  /\bCASH\s+OUT\b/,
-  /\bINT(?:ERNAL)?\s+(?:TFR|TRANSFER)\b/,
-  /\bTRANSFER\s+(?:TO|FROM)\b/,
-  /\bE?FUNDS?\s+TRANSFER\b/,
-  /\bBPAY\b/,
+  /\b(?:TRANSFER|TFR)\b/,
   /\bWITHDRAWAL\b/,
+  /\bCASH\s+ADV(?:ANCE)?\b/,
+  /\bATM\b/,
+  /\bCASH\s+OUT\b/,
+  /\bBPAY\b/,
 ];
 
 /**

@@ -61,6 +61,20 @@ describe("POST /v1/categorise handler", () => {
     expect(repo.enqueued).toContain("zzz mystery shop");
   });
 
+  it("does not enqueue an excluded transfer, but does enqueue a genuine unknown (ext-004 §2)", async () => {
+    const repo = new InMemoryRepository();
+    await makeCategoriseHandler(repo, cfg)(
+      event({
+        transactions: [
+          { id: "t", description: "PAYPAL TRANSFER", amount: -40 },
+          { id: "u", description: "ZZZ TOTALLY UNKNOWN VENDOR", amount: -9 },
+        ],
+      }),
+    );
+    expect(repo.enqueued).not.toContain("paypal transfer");
+    expect(repo.enqueued).toContain("zzz totally unknown vendor");
+  });
+
   it("enqueues unknown merchants even when the LLM tier is off (spec §4)", async () => {
     const repo = new InMemoryRepository();
     const offCfg = { ...cfg, llmTierEnabled: false };

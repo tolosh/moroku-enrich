@@ -159,6 +159,12 @@ describe("credits (spec §2 — v1 debits-only)", () => {
     expect(r.category).toBe("transfer");
   });
 
+  it("bare 'transfer' is excluded — paypal transfer never reaches the LLM tier (ext-004 §2)", () => {
+    const r = categorise({ ...base, description: "PAYPAL TRANSFER", amount: -40 }, EMPTY_LOOKUPS);
+    expect(r.source).toBe("exclusion");
+    expect(r.excluded).toBe(true);
+  });
+
   it("a debit (negative amount) is unaffected and reaches the normal tiers", () => {
     const r = categorise({ ...base, amount: -50, mcc: "5541" }, EMPTY_LOOKUPS);
     expect(r.source).toBe("mcc");

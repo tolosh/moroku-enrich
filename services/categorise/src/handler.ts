@@ -66,8 +66,15 @@ export function makeCategoriseHandler(repo: Repository, cfg: Config) {
     // (spec §4, unconditionally). The classifier is what respects
     // LLM_TIER_ENABLED: while the tier is off its SQS event source is disabled,
     // so keys accumulate on the queue unconsumed until the tier is switched on.
+    // Only genuine unknowns enqueue: fallback implies the txn passed the
+    // exclusion + credit tiers, but the `!excluded` guard is explicit (ext-004
+    // §2) so transfers/withdrawals never enter the queue as classification noise.
     const uniqueUnknown = [
-      ...new Set(results.filter((r) => r.source === "fallback").map((r) => r.merchant.match_key)),
+      ...new Set(
+        results
+          .filter((r) => r.source === "fallback" && !r.excluded)
+          .map((r) => r.merchant.match_key),
+      ),
     ];
     if (uniqueUnknown.length > 0) {
       await repo.enqueueUnknownMerchants(uniqueUnknown);
