@@ -28,11 +28,16 @@ import { SqsEventSource } from "aws-cdk-lib/aws-lambda-event-sources";
 import * as events from "aws-cdk-lib/aws-events";
 import * as targets from "aws-cdk-lib/aws-events-targets";
 import * as cloudwatch from "aws-cdk-lib/aws-cloudwatch";
+import * as acm from "aws-cdk-lib/aws-certificatemanager";
 import {
   HttpApi,
   HttpMethod,
   HttpNoneAuthorizer,
   CfnStage,
+  DomainName,
+  ApiMapping,
+  EndpointType,
+  SecurityPolicy,
 } from "aws-cdk-lib/aws-apigatewayv2";
 import { HttpLambdaIntegration } from "aws-cdk-lib/aws-apigatewayv2-integrations";
 import {
@@ -454,10 +459,43 @@ export class MorokuEnrichStack extends Stack {
     );
 
     // ---------------------------------------------------------------------
+    // Custom domain — enrich.moroku.digital (ext-003).
+    // DNS for moroku.digital is external (GoDaddy), so the ACM cert is DNS-
+    // validated with no hosted zone: CloudFormation waits for the validation
+    // CNAME to be added manually before the cert issues. Regional HTTP API
+    // custom domains require a same-region (ap-southeast-2) cert. The default
+    // execute-api endpoint stays enabled (Kanopi's shadow client still uses it).
+    // ---------------------------------------------------------------------
+    const publicHostname = "enrich.moroku.digital";
+    const certificate = new acm.Certificate(this, "ApiCertificate", {
+      domainName: publicHostname,
+      certificateName: `${prefix}-enrich`,
+      validation: acm.CertificateValidation.fromDns(),
+    });
+    const apiDomain = new DomainName(this, "ApiDomainName", {
+      domainName: publicHostname,
+      certificate,
+      endpointType: EndpointType.REGIONAL,
+      securityPolicy: SecurityPolicy.TLS_1_2,
+    });
+    new ApiMapping(this, "ApiDomainMapping", {
+      api,
+      domainName: apiDomain,
+      stage: api.defaultStage!,
+      // no apiMappingKey → root mapping, so /v1/... maps straight through.
+    });
+
+    // ---------------------------------------------------------------------
     // Outputs.
     // ---------------------------------------------------------------------
     new CfnOutput(this, "ApiUrl", { value: api.apiEndpoint, description: "HTTP API base URL" });
     new CfnOutput(this, "UnknownMerchantQueueUrl", { value: unknownMerchantQueue.queueUrl });
     new CfnOutput(this, "DashboardName", { value: dashboard.dashboardName });
+    new CfnOutput(this, "CustomDomainName", { value: publicHostname });
+    new CfnOutput(this, "CustomDomainTarget", {
+      value: apiDomain.regionalDomainName,
+      description: "CNAME target for enrich.moroku.digital",
+    });
+    new CfnOutput(this, "CertificateArn", { value: certificate.certificateArn });
   }
 }
