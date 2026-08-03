@@ -60,7 +60,13 @@ export const RULES: readonly Rule[] = [
   },
   {
     id: "5-utilities",
-    codes: ["UTIL", "UTLW", "OTHD"],
+    // OTHD ("other debits") removed (ext-004 §1): it is a DocuScan catch-all
+    // code carrying no category signal, and it was short-circuiting to utilities
+    // before description matching (the Opal bug). Codes match only when specific.
+    // Audit: OTHD was the only catch-all in the chain; all other codes (MRTG,
+    // RNT, GROC, UTIL, UTLW, VHFL, TRVL, INSDC, SRTA, EDUCP, STRM, REST, CLTH,
+    // HLTH) are category-specific and retained.
+    codes: ["UTIL", "UTLW"],
     pattern:
       /\b(utility|electric|electricity|energy|gas|water|internet|broadband|phone|mobile|telstra|optus|vodafone|agl|origin|energyaustralia|red energy)\b/,
     category: CATEGORY.UTILITIES,

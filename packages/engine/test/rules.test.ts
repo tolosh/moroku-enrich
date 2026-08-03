@@ -48,6 +48,18 @@ describe("merged rules chain — deviations (ext-002 §3, each pinned)", () => {
   });
 });
 
+describe("ext-004 item 1: catch-all codes must not short-circuit description matching", () => {
+  it("Opal Top-up + catch-all code OTHD -> transport via description (not utilities)", () => {
+    expect(ruleFor("opal top-up", { code: "OTHD" })?.category).toBe(CATEGORY.TRANSPORT);
+  });
+  it("a genuine utilities description + OTHD -> still utilities (via description)", () => {
+    expect(ruleFor("sydney water bill", { code: "OTHD" })?.category).toBe(CATEGORY.UTILITIES);
+  });
+  it("a UTIL-coded transaction with unrelated description -> still utilities (specific code)", () => {
+    expect(ruleFor("acme holdings pty", { code: "UTIL" })?.category).toBe(CATEGORY.UTILITIES);
+  });
+});
+
 describe("merged rules chain — precedence & reachability (ext-002 §4)", () => {
   it("priority cues outrank the brand rules (P1 fuel beats rule 4 groceries)", () => {
     expect(ruleFor("coles express fuel")?.ruleId).toBe("P1-fuel");
