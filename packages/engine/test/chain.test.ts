@@ -165,6 +165,29 @@ describe("credits (spec §2 — v1 debits-only)", () => {
   });
 });
 
+describe("MCC subscription fix (shadow-mode, compliance)", () => {
+  it("NETFLIX.COM on MCC 4899 → subscriptions/discretionary via source mcc (was utilities/essential)", () => {
+    const r = categorise({ ...base, description: "NETFLIX.COM", mcc: "4899", amount: -18.99 }, EMPTY_LOOKUPS);
+    expect(r.source).toBe("mcc");
+    expect(r.category).toBe("subscriptions");
+    expect(r.classification).toBe("discretionary");
+  });
+
+  it("MCC 5968 (direct-marketing continuity) → subscriptions/discretionary via mcc", () => {
+    const r = categorise({ ...base, description: "SOME CONTINUITY CLUB", mcc: "5968", amount: -9.99 }, EMPTY_LOOKUPS);
+    expect(r.source).toBe("mcc");
+    expect(r.category).toBe("subscriptions");
+    expect(r.classification).toBe("discretionary");
+  });
+
+  it("MCC 4900 (utilities proper) still → utilities/essential", () => {
+    const r = categorise({ ...base, description: "SYDNEY WATER", mcc: "4900", amount: -120 }, EMPTY_LOOKUPS);
+    expect(r.source).toBe("mcc");
+    expect(r.category).toBe("utilities");
+    expect(r.classification).toBe("essential");
+  });
+});
+
 describe("conservative fallback (spec §4 step 7, kickoff)", () => {
   it("returns other_expenses / essential / unverified for an unknown merchant", () => {
     const r = categorise({ ...base, description: "ZZZ UNKNOWN MERCHANT" }, EMPTY_LOOKUPS);

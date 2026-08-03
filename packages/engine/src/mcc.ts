@@ -52,8 +52,17 @@ const MCC_GROUPS: readonly MccGroup[] = [
     codes: ["4111", "4112", "4121", "4131", "4784", "4789", "4011", "4304", "7512", "7513", "7519"],
   },
   {
+    // 4900 is utilities proper. 4899 (cable/satellite/pay-TV/streaming) moved to
+    // subscriptions below — real traffic (NETFLIX.COM, SPOTIFY AU) arrives on
+    // 4899 and must NOT inflate essential spend (compliance: conservative posture).
     category: CATEGORY.UTILITIES,
-    codes: ["4812", "4814", "4821", "4899", "4900"],
+    codes: ["4812", "4814", "4821", "4900"],
+  },
+  {
+    // Digital subscriptions / streaming / continuity (discretionary). Shadow-mode
+    // fix: 4899 streaming was classifying as utilities/essential at 0.95.
+    category: CATEGORY.SUBSCRIPTIONS,
+    codes: ["4899", "5815", "5816", "5817", "5818", "5968"],
   },
   {
     category: CATEGORY.INSURANCE,

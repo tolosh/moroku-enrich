@@ -9,11 +9,13 @@
  * batch on a pinned engine_version reproduces the report exactly.
  */
 export const NORMALISER_VERSION = "1.0.0";
-export const MCC_TABLE_VERSION = "1.0.0";
+// 1.1.0: 4899 + digital-subscription MCCs (5815-5818, 5968) → subscriptions
+// (were misclassifying streaming as utilities/essential). Shadow-mode fix.
+export const MCC_TABLE_VERSION = "1.1.0";
 export const RULES_VERSION = "1.0.0";
 
 /** The released engine semver. Bump when any component below changes. */
-export const ENGINE_VERSION = "1.0.0";
+export const ENGINE_VERSION = "1.1.0";
 
 /**
  * The taxonomy version this engine build targets. The authoritative taxonomy

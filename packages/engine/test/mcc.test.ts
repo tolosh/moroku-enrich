@@ -34,6 +34,15 @@ describe("MCC table (spec §4 step 3; completed ext-002 §5)", () => {
     }
   });
 
+  it("maps digital subscriptions off utilities (shadow-mode fix, MCC v1.1.0)", () => {
+    // 4899 + digital-goods/media MCCs are subscriptions, not utilities/essential.
+    for (const code of ["4899", "5815", "5816", "5817", "5818", "5968"]) {
+      expect(lookupMcc(code)?.category, code).toBe(CATEGORY.SUBSCRIPTIONS);
+    }
+    // 4900 (utilities proper) is untouched.
+    expect(lookupMcc("4900")?.category).toBe(CATEGORY.UTILITIES);
+  });
+
   it("every row targets a real taxonomy id (ext-002 §6.4)", () => {
     for (const [code, category] of MCC_TABLE.entries()) {
       expect(isValidCategory(category), `MCC ${code} → ${category}`).toBe(true);
