@@ -66,6 +66,15 @@ export class MorokuEnrichStack extends Stack {
     const servicesRoot = path.join(__dirname, "..", "..", "services");
     const depsLockFilePath = path.join(__dirname, "..", "..", "package-lock.json");
 
+    // LLM tier enablement is a deploy-time switch (phase 2): `--context llmTier=on`
+    // flips the flag, the classifier's SQS event source, and the handler env
+    // together. Default off. The Bedrock model id is also context-overridable so
+    // a cross-region inference profile can be substituted without a code change.
+    const llmTierEnabled = this.node.tryGetContext("llmTier") === "on";
+    const bedrockModelId =
+      (this.node.tryGetContext("bedrockModelId") as string | undefined) ??
+      "anthropic.claude-3-haiku-20240307-v1:0";
+
     // ---------------------------------------------------------------------
     // DynamoDB tables (spec §5). On-demand billing; PITR only in prod.
     // ---------------------------------------------------------------------
@@ -124,7 +133,7 @@ export class MorokuEnrichStack extends Stack {
     // ---------------------------------------------------------------------
     const ssmBase = `/moroku-enrich/${stage}/config`;
     const configValues: Record<string, string> = {
-      "llm-tier-enabled": "false", // classifier stub off until phase 2
+      "llm-tier-enabled": String(llmTierEnabled), // phase 2 deploy-time switch
       "prompt-version": "1", // llm_cache key component
       "low-confidence-threshold": "0.8", // < this → flags:["low_confidence"] + confident_pct cut
       "llm-trust-threshold": "0.6", // model confidence below this is not trusted (spec §4)
@@ -174,6 +183,7 @@ export class MorokuEnrichStack extends Stack {
         memory?: number;
         timeout?: Duration;
         env?: Record<string, string>;
+        externalModules?: string[];
       } = {},
     ) =>
       new NodejsFunction(this, cid, {
@@ -192,7 +202,9 @@ export class MorokuEnrichStack extends Stack {
           target: "node22",
           format: OutputFormat.CJS,
           // aws-sdk v3 is provided by the nodejs22.x runtime — don't bundle it.
-          externalModules: ["@aws-sdk/*"],
+          // (client-bedrock-runtime is NOT in the runtime, so the classifier
+          // overrides this to bundle it — see below.)
+          externalModules: opts.externalModules ?? ["@aws-sdk/*"],
         },
       });
 
@@ -230,18 +242,20 @@ export class MorokuEnrichStack extends Stack {
     correctionsLog.grantWriteData(readFn); // revocations append to the log (spec §3.3)
 
     // --- classifier (SQS worker): one-time Bedrock Haiku classification → cache.
+    // externalModules [] → bundle its aws-sdk clients: client-bedrock-runtime is
+    // NOT in the nodejs22 runtime, so it must be bundled (dynamodb bundles too).
     const classifierFn = makeFn("ClassifierFn", "classifier", {
       memory: 512,
       timeout: Duration.seconds(60),
+      externalModules: [],
+      env: { BEDROCK_MODEL_ID: bedrockModelId },
     });
     llmCache.grantReadWriteData(classifierFn);
     merchantsGlobal.grantReadData(classifierFn);
     correctionsLog.grantReadData(classifierFn); // few-shot examples from corrections
-    // Consumer is gated by the LLM-tier flag: while off, the event source is
-    // disabled so unknown-merchant keys accumulate on the queue unconsumed
-    // (spec §4 — categorise still enqueues them). Flip the SSM flag + redeploy
-    // to enable classification.
-    const llmTierEnabled = configValues["llm-tier-enabled"] === "true";
+    // Consumer is gated by the LLM-tier flag (`--context llmTier=on`): while off,
+    // the event source is disabled so unknown-merchant keys accumulate on the
+    // queue unconsumed (spec §4 — categorise still enqueues them).
     classifierFn.addEventSource(
       new SqsEventSource(unknownMerchantQueue, {
         batchSize: 10,
@@ -249,12 +263,14 @@ export class MorokuEnrichStack extends Stack {
         enabled: llmTierEnabled,
       }),
     );
-    // Bedrock Haiku (+ cross-region inference fallback). Scoped to Anthropic models.
+    // Bedrock Haiku (+ cross-region inference profiles). Scoped to Anthropic
+    // Haiku foundation models (any region, for cross-region inference) and this
+    // account's inference profiles.
     classifierFn.addToRolePolicy(
       new iam.PolicyStatement({
         actions: ["bedrock:InvokeModel"],
         resources: [
-          `arn:aws:bedrock:*::foundation-model/anthropic.claude-3-haiku*`,
+          `arn:aws:bedrock:*::foundation-model/anthropic.claude-*haiku*`,
           `arn:aws:bedrock:*:${this.account}:inference-profile/*`,
         ],
       }),

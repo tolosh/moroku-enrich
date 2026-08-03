@@ -3,9 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Moroku Enrich classifier Lambda handler.",
+  "description": "Moroku Enrich classifier Lambda handler (Bedrock Haiku LLM tier).",
   "scripts": {
     "build": "tsc --build",
     "test": "vitest run"
+  },
+  "dependencies": {
+    "@moroku-enrich/taxonomy": "0.1.0"
   }
 }
