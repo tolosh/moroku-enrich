@@ -1,7 +1,8 @@
 # Moroku Enrich — Build Status & Handover
 
-_Last updated: 2026-08-03. Phase 1 (core service) + extensions 001/002 applied
-and **deployed to dev**. Reader is assumed to have the spec
+_Last updated: 2026-08-04. Phase 1 (core service) + extensions 001–004 applied,
+LLM tier live, and **deployed to dev** (engine 1.2.0). Reader is assumed to have
+the spec
 (`docs/moroku-enrich-spec.md`), the two extension specs (`docs/extensions/`), and
 this repo, but none of the originating conversation. Read this file top to bottom
 before writing code._
@@ -49,7 +50,7 @@ First dev deploy done 2026-08-03 into the Moroku Dev Sandbox
 
 ## 1. What is built and working
 
-`npm run build` (`tsc --build`, all projects), `npm test` (**136 pass, 0 todo**)
+`npm run build` (`tsc --build`, all projects), `npm test` (**159 pass, 0 todo**)
 and `npm run synth` (`cdk synth`, dev) are all **green**, and the stack is
 deployed to dev (§0).
 
@@ -99,12 +100,15 @@ deployed to dev (§0).
 - **`classifier` is live** (phase 2, Bedrock Haiku 4.5 — §0). The **`promotion`
   Lambda is still a stub** — the async global-corroboration/approval worker
   (cross-tenant ≥2-tenant + competing-share enforcement → merchants_global).
-- **Classifier follow-ups (from the first real drain, not blocking):**
-  it re-invokes Bedrock per message (no cache-check before InvokeModel), so
-  duplicate match_keys re-classify — add a `GetItem` short-circuit to cut cost.
-  Normaliser gaps surfaced by real data: `EFTPOS ` prefix and `cardxx1234`
-  suffix aren't stripped (e.g. `eftpos the boathouse palm beach` vs
-  `the boathouse palm beach` cache as two keys).
+- **Shadow-data fixes (ext-004, applied + deployed 2026-08-04, engine 1.2.0):**
+  (1) catch-all DocuScan code `OTHD` removed from rules code-matching (Opal bug);
+  (2) bare-`transfer` exclusion + explicit enqueue gate (no transfer noise in the
+  LLM queue); (3) classifier cache-check before Bedrock + intra-batch dedup;
+  (4) normaliser strips EFTPOS/VISA/DEBIT/V prefixes + CARDxx fragments (bumped
+  NORMALISER 1.1.0 / ENGINE 1.2.0) with a one-time key migration
+  (`scripts/migrate-normaliser-keys.ts`, run against dev — 16 re-keyed, 1 merge);
+  (5) corrections accept `transfer` as a target (user override → excluded).
+  All verified live over `enrich.moroku.digital`.
 - **Income recognition** (spec §2 phase 2) — credits are returned as
   `uncategorised_credit`; salary/benefit recognition is later.
 - **ext-001 §4 deferred items** — trial-corrections quarantine, developer-
@@ -176,6 +180,6 @@ taxonomy/rules inputs (ext-002). No open questions block the build.
 ```
 npm install
 npm run build   # tsc --build, all projects — must stay green
-npm test        # 136 tests, all pass
+npm test        # 159 tests, all pass
 npm run synth   # cdk synth (dev) — must pass; does NOT deploy
 ```

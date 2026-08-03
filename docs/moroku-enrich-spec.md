@@ -92,7 +92,7 @@ Response (per transaction, same order, `id` echoed):
 }
 ```
 
-`summary.confident_pct` is deliberately surfaced so Kanopi can print "**91% of spend confidently categorised**" on every report — the accuracy KPI and the sales number.
+`summary.confident_pct` is deliberately surfaced so Kanopi can print "**91% of spend confidently categorised**" on every report — the accuracy KPI and the sales number. It is the share of non-excluded (spend) transactions with `confidence ≥ 0.8`; transfers and credits are excluded from the denominator. **A low `confident_pct` on statement/DocuScan runs is expected, not a defect** (ext-004): statement transactions carry no MCC, so they resolve via the rules tier at confidence 0.70 — below the 0.8 bar by design — and the number rises as the dictionary and LLM cache come to cover those statement merchants.
 
 ### 3.2 `POST /v1/corrections` — the learning loop
 
