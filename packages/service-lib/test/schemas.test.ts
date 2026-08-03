@@ -39,6 +39,13 @@ describe("CorrectionsRequestSchema (spec §3.2)", () => {
     expect(r.corrections[0]!.actor).toBe("consumer");
   });
 
+  it("accepts a correction to transfer / not-an-expense (ext-004 §5)", () => {
+    const r = CorrectionsRequestSchema.safeParse({
+      corrections: [{ description: "TRANSFER TO SAVINGS", user_ref: "u1", corrected_category: "transfer" }],
+    });
+    expect(r.success).toBe(true);
+  });
+
   it("requires corrected_category and user_ref", () => {
     expect(
       CorrectionsRequestSchema.safeParse({

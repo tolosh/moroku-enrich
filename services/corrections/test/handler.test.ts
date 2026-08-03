@@ -107,6 +107,27 @@ describe("POST /v1/corrections handler (spec §3.2)", () => {
     expect(received).toBe(1);
   });
 
+  it("accepts a correction to transfer / not-an-expense (ext-004 §5)", async () => {
+    const repo = new InMemoryRepository();
+    const res = await makeCorrectionsHandler(repo, cfg)(
+      event({
+        corrections: [
+          {
+            description: "TRANSFER TO SAVINGS",
+            user_ref: "u1",
+            corrected_category: "transfer",
+            previous_category: "other_expenses",
+          },
+        ],
+      }),
+    );
+    const body = JSON.parse(res.body as string);
+    expect(body.results[0].accepted).toBe(true);
+    expect(body.results[0].applied_scope).toBe("user");
+    const stored = [...repo.overrides.values()].find((o) => o.scope === "user");
+    expect(stored?.category).toBe("transfer");
+  });
+
   it("meters corrections_received (ext-001)", async () => {
     const repo = new InMemoryRepository();
     await makeCorrectionsHandler(repo, cfg)(

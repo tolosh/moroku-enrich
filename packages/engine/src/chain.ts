@@ -15,6 +15,7 @@
  */
 import {
   defaultClassificationFor,
+  getCategory,
   type Classification,
 } from "@moroku-enrich/taxonomy";
 import { normaliseMerchant, type NormalisedMerchant } from "./normaliser.js";
@@ -78,7 +79,10 @@ function build(
     classification,
     confidence,
     source,
-    excluded: opts.excluded ?? false,
+    // Derive `excluded` from the taxonomy when not set explicitly, so a
+    // non-fallback path that resolves to an excluded outcome (e.g. a user
+    // override to `transfer`, ext-004 §5) is correctly marked excluded.
+    excluded: opts.excluded ?? getCategory(category)?.excluded ?? false,
     flags,
     merchant,
     engine_version: ENGINE_VERSION,

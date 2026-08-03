@@ -64,6 +64,15 @@ describe("signal chain — priority ordering (spec §4, first hit wins)", () => 
     expect(r.confidence).toBe(1.0);
   });
 
+  it("a user override to transfer returns excluded (ext-004 §5)", () => {
+    const r = categorise(base, lookups({ user: { category: "transfer" } }));
+    expect(r.source).toBe("user_override");
+    expect(r.category).toBe("transfer");
+    expect(r.excluded).toBe(true);
+    expect(r.confidence).toBe(1.0);
+    expect(r.classification).toBe("essential");
+  });
+
   it("tenant override beats MCC and dictionary", () => {
     const r = categorise(
       { ...base, mcc: "5541" },

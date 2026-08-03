@@ -18,9 +18,11 @@ const mcc = z
   .regex(/^\d{4}$/, "mcc must be a 4-digit ISO 18245 code");
 
 /**
- * A category id supplied by a caller. While EXPENSE_CATEGORIES is empty (the
- * verbatim 16-list is a blocked input) any non-empty string is accepted; once
- * the taxonomy is populated this refine enforces membership automatically.
+ * A category id supplied by a caller. `isValidCategory` accepts the 15 expense
+ * categories AND the non-expense outcomes — notably `transfer`, so a user can
+ * correct a miscategorised transaction to "not an expense" (ext-004 §5). While
+ * EXPENSE_CATEGORIES is empty any non-empty string is accepted; once populated
+ * this refine enforces membership automatically.
  */
 const categoryId = z
   .string()
