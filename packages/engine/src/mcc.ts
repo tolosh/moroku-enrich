@@ -90,17 +90,26 @@ const MCC_GROUPS: readonly MccGroup[] = [
     codes: ["6513"],
   },
   {
-    // Taxonomy v1 has no travel/retail/home/personal-care/services/government
-    // categories — these ISO groups fall to the discretionary catch-all.
-    category: CATEGORY.OTHER_EXPENSES,
+    // ext-006: general retail / department / electronics / homewares / hobby —
+    // lifted out of the other_expenses catch-all into a category of its own.
+    // Classification is unchanged (both default `discretionary`), so no
+    // affordability number moves; what changes is that `other_expenses` now
+    // means "genuinely unclassified" rather than "retail plus everything else".
+    category: CATEGORY.GENERAL_RETAIL,
     codes: [
-      // travel & lodging (deviation 4: lodging → other_expenses)
-      "3000", "3501", "4411", "4457", "4511", "4722", "4723", "7011", "7012", "7032", "7033",
-      // general retail / department / electronics / hobby
       "5200", "5211", "5231", "5251", "5261", "5300", "5309", "5310", "5311", "5331",
       "5399", "5712", "5713", "5714", "5718", "5719", "5722", "5732", "5733", "5734",
       "5735", "5931", "5940", "5941", "5942", "5943", "5944", "5945", "5946", "5947",
       "5970", "5992", "5999",
+    ],
+  },
+  {
+    // Taxonomy still has no travel/personal-care/services/government categories
+    // — these ISO groups fall to the discretionary catch-all.
+    category: CATEGORY.OTHER_EXPENSES,
+    codes: [
+      // travel & lodging (deviation 4: lodging → other_expenses)
+      "3000", "3501", "4411", "4457", "4511", "4722", "4723", "7011", "7012", "7032", "7033",
       // personal care & services
       "5977", "7230", "7297", "7298", "7210", "7211", "7216", "7251", "7261",
       // professional / business services

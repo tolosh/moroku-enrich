@@ -12,8 +12,9 @@ Source of truth: [`docs/moroku-enrich-spec.md`](docs/moroku-enrich-spec.md).
 infra/       CDK app (TypeScript) — one app, dev + prod stages
 services/    Lambdas: categorise, corrections, read, classifier (SQS/Bedrock, phase 2)
 packages/
-  engine/    pure-TS domain logic (normaliser, MCC table, rules, signal chain) — zero AWS imports
-  taxonomy/  taxonomy v1, versioned
+  engine/    pure-TS domain logic (normaliser, MCC table, rules, income,
+             savings, signal chain) — zero AWS imports
+  taxonomy/  taxonomy 1.1, versioned
 docs/        spec + generated API docs
 fixtures/    anonymised transaction fixtures for engine tests
 ```
@@ -30,26 +31,23 @@ npm run build     # tsc --build (composite project references)
 npm run deploy:dev
 ```
 
-## Build status (Phase 1)
+## Build status
 
 | Component | State |
 |---|---|
 | Repo scaffold + tooling | ✅ |
 | Merchant normaliser (pure, 37 tests) | ✅ |
-| Taxonomy v1 structure | ✅ (category list pending — see below) |
-| MCC table | ⛔ blocked on category list |
-| Rules tier | ⛔ blocked on category list + Kanopi regex source |
-| Signal chain orchestrator | ⛔ blocked on above |
-| CDK stack | ⏳ |
-| Lambda handlers | ⏳ |
-| Classifier stub (LLM tier, flag off) | ⏳ |
-| Fixtures + tests + deploy | ⏳ |
+| Taxonomy 1.1 — 17 expense + 5 non-expense | ✅ |
+| MCC table | ✅ |
+| Rules tier | ✅ |
+| Signal chain orchestrator | ✅ |
+| CDK stack + Lambda handlers | ✅ |
+| Classifier (LLM tier, Bedrock Haiku 4.5) | ✅ live in dev |
+| Income recognition + savings subtyping (ext-006) | ✅ built, **not yet deployed** |
+| Promotion worker | ⏳ stub |
 
-**Blocked:** per decision §9.1, the 16 Kanopi expense-category identifiers must be
-lifted verbatim from Kanopi's code — they are not invented here.
-`packages/taxonomy/src/index.ts` has the structure; `EXPENSE_CATEGORIES` is empty
-until the list is supplied. The rules tier additionally needs Kanopi's existing
-regex chains (statements + open-banking copies) to port.
+`npm test` — 185 pass. Full detail, deployment state and the Kanopi shadow-diff
+consequence of ext-006 are in [`STATUS.md`](STATUS.md).
 
 ## Deployment target
 

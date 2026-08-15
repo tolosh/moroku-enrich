@@ -134,6 +134,10 @@ export class MorokuEnrichStack extends Stack {
     const ssmBase = `/moroku-enrich/${stage}/config`;
     const configValues: Record<string, string> = {
       "llm-tier-enabled": String(llmTierEnabled), // phase 2 deploy-time switch
+      // ext-006 income recognition + savings subtyping. Defaults ON and is NOT
+      // a deploy-time context flag — it is a kill switch, flippable in SSM +
+      // redeploy if Kanopi's shadow diff needs quietening.
+      "income-savings-enabled": "true",
       "prompt-version": "1", // llm_cache key component
       "low-confidence-threshold": "0.8", // < this → flags:["low_confidence"] + confident_pct cut
       "llm-trust-threshold": "0.6", // model confidence below this is not trusted (spec §4)
@@ -170,6 +174,7 @@ export class MorokuEnrichStack extends Stack {
       METRIC_NAMESPACE,
       // Config mirrored to env for hot-path reads; SSM remains the source of truth.
       LLM_TIER_ENABLED: configValues["llm-tier-enabled"]!,
+      INCOME_SAVINGS_ENABLED: configValues["income-savings-enabled"]!,
       PROMPT_VERSION: configValues["prompt-version"]!,
       LOW_CONFIDENCE_THRESHOLD: configValues["low-confidence-threshold"]!,
       LLM_TRUST_THRESHOLD: configValues["llm-trust-threshold"]!,

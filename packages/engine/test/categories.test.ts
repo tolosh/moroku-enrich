@@ -27,7 +27,7 @@ describe("category registry (decision §9.1, reconciled by ext-002)", () => {
 
 describe("placeholder ↔ taxonomy reconciliation tripwire (ext-002 §6.1)", () => {
   it("fully reconciles — no pending sentinels, no invalid bindings", () => {
-    expect(EXPENSE_CATEGORIES.length).toBe(15);
+    expect(EXPENSE_CATEGORIES.length).toBe(17); // 15 verbatim + 2 (ext-006)
     const { pending, invalid } = reconcileCategories();
     expect(pending).toEqual([]);
     expect(invalid).toEqual([]);

@@ -142,8 +142,11 @@ describe("signal chain — priority ordering (spec §4, first hit wins)", () => 
 });
 
 describe("credits (spec §2 — v1 debits-only)", () => {
-  it("returns uncategorised_credit, excluded, for a positive amount", () => {
-    const r = categorise({ ...base, description: "SALARY ACME PTY LTD", amount: 4200 }, EMPTY_LOOKUPS);
+  it("returns uncategorised_credit, excluded, for an unrecognised credit", () => {
+    const r = categorise(
+      { ...base, description: "REFUND ZZZ MERCHANT", amount: 4200 },
+      EMPTY_LOOKUPS,
+    );
     expect(r.source).toBe("credit");
     expect(r.category).toBe("uncategorised_credit");
     expect(r.excluded).toBe(true);
@@ -163,7 +166,7 @@ describe("credits (spec §2 — v1 debits-only)", () => {
   });
 
   it("an explicit transfer still wins over the credit branch", () => {
-    const r = categorise({ ...base, description: "TRANSFER FROM SAVINGS", amount: 250 }, EMPTY_LOOKUPS);
+    const r = categorise({ ...base, description: "TRANSFER FROM CHEQUE ACCT", amount: 250 }, EMPTY_LOOKUPS);
     expect(r.source).toBe("exclusion");
     expect(r.category).toBe("transfer");
   });
@@ -226,7 +229,7 @@ describe("conservative fallback (spec §4 step 7, kickoff)", () => {
   it("stamps engine and taxonomy versions on every result", () => {
     const r = categorise(base, EMPTY_LOOKUPS);
     expect(r.engine_version).toMatch(/^\d+\.\d+\.\d+$/);
-    expect(r.taxonomy_version).toBe("1");
+    expect(r.taxonomy_version).toBe("1.1");
     expect(r.merchant.match_key).toBe("the daily grind");
   });
 });

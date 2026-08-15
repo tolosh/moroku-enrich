@@ -10,7 +10,9 @@ import type { NormalisedMerchant } from "./normaliser.js";
 /** The tier that produced a result (spec §3.1 `source`). First hit wins. */
 export type Source =
   | "exclusion"
+  | "savings"
   | "credit"
+  | "income"
   | "user_override"
   | "tenant_override"
   | "mcc"
@@ -85,6 +87,12 @@ export interface ChainOptions {
   lowConfidenceThreshold?: number;
   /** LLM-cache rows below this confidence are not trusted (spec §4 step 6). */
   llmTrustThreshold?: number;
+  /**
+   * ext-006 income recognition + savings subtyping. Defaults to true. Set false
+   * to restore exactly the 1.2.0 outcomes (credits → uncategorised_credit, all
+   * transfers → transfer) without a code change.
+   */
+  incomeSavingsEnabled?: boolean;
 }
 
 /** The full per-transaction result record (spec §3.1 response). */

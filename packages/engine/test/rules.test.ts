@@ -25,9 +25,31 @@ describe("merged rules chain — deviations (ext-002 §3, each pinned)", () => {
     expect(ruleFor("school fees term 3")?.category).toBe(CATEGORY.EDUCATION);
   });
 
-  it("D3: loan_repayment rule — BNPL classifies as loan_repayment", () => {
-    expect(ruleFor("afterpay")?.category).toBe(CATEGORY.LOAN_REPAYMENT);
-    expect(ruleFor("zip pay")?.category).toBe(CATEGORY.LOAN_REPAYMENT);
+  it("D3 (superseded by ext-006): BNPL now classifies as bnpl, not loan_repayment", () => {
+    // ext-002 D3 routed BNPL through the loan_repayment rule because there was
+    // no BNPL category. ext-006 adds one; the classification is unchanged
+    // (financial_commitment), so no affordability number moves.
+    expect(ruleFor("afterpay")?.category).toBe(CATEGORY.BNPL);
+    expect(ruleFor("zip pay")?.category).toBe(CATEGORY.BNPL);
+    expect(ruleFor("klarna")?.category).toBe(CATEGORY.BNPL);
+    expect(ruleFor("humm")?.category).toBe(CATEGORY.BNPL);
+
+    // Genuine loans stay on rule 3 — Latitude writes personal loans as well as
+    // LatitudePay, so the bare brand must NOT be swept into bnpl.
+    expect(ruleFor("personal loan repayment")?.category).toBe(CATEGORY.LOAN_REPAYMENT);
+    expect(ruleFor("latitude financial")?.category).toBe(CATEGORY.LOAN_REPAYMENT);
+    expect(ruleFor("latitudepay")?.category).toBe(CATEGORY.BNPL);
+  });
+
+  it("ext-006: general_retail is last, so specific rules keep first refusal", () => {
+    expect(ruleFor("jb hi-fi")?.category).toBe(CATEGORY.GENERAL_RETAIL);
+    expect(ruleFor("officeworks")?.category).toBe(CATEGORY.GENERAL_RETAIL);
+    expect(ruleFor("amazon marketplace au")?.category).toBe(CATEGORY.GENERAL_RETAIL);
+    // 11-subscriptions must still win for Prime, and apparel department stores
+    // stay on 13-clothing.
+    expect(ruleFor("amazon prime")?.category).toBe(CATEGORY.SUBSCRIPTIONS);
+    expect(ruleFor("kmart")?.category).toBe(CATEGORY.CLOTHING);
+    expect(ruleFor("myer")?.category).toBe(CATEGORY.CLOTHING);
   });
 
   it("D4: hotel/bar stay in dining_entertainment", () => {
@@ -75,9 +97,10 @@ describe("merged rules chain — precedence & reachability (ext-002 §4)", () =>
     const samples: Record<string, string> = {
       "P1-fuel": "shell fuel",
       "P2-cinema": "village cinemas",
+      "P3-bnpl": "afterpay",
       "1-mortgage": "home loan repayment nab",
       "2-rent": "rental payment agent",
-      "3-loan": "afterpay",
+      "3-loan": "personal loan",
       "4-groceries": "woolworths metro",
       "5-utilities": "telstra bill",
       "6-fuel-brands": "diesel caltex",
@@ -89,6 +112,7 @@ describe("merged rules chain — precedence & reachability (ext-002 §4)", () =>
       "12-dining": "restaurant dinner",
       "13-clothing": "uniqlo",
       "14-healthcare": "priceline pharmacy",
+      "15-general-retail": "jb hi-fi",
     };
     const reached = new Set<string>();
     for (const [expectedId, key] of Object.entries(samples)) {

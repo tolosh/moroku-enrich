@@ -55,7 +55,7 @@ describe("read endpoints (spec §3.3)", () => {
     expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.body as string);
     expect(body.status).toBe("ok");
-    expect(body.taxonomy_version).toBe("1");
+    expect(body.taxonomy_version).toBe("1.1");
   });
 
   it("GET /v1/taxonomy serves the versioned taxonomy document", async () => {
@@ -64,7 +64,7 @@ describe("read endpoints (spec §3.3)", () => {
     );
     expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.body as string);
-    expect(body.taxonomy_version).toBe("1");
+    expect(body.taxonomy_version).toBe("1.1");
     expect(Array.isArray(body.categories)).toBe(true);
   });
 
