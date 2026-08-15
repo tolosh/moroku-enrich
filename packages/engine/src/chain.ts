@@ -5,6 +5,9 @@
  * step 3 is skipped for them.
  *
  *   1  exclusion        transfer/ATM/cash-advance      excluded, conf 1.0
+ *   1a savings          directed savings movement      excluded, conf 1.0  (ext-006)
+ *   1b income           recognised salary/benefit      excluded, conf 0.9  (ext-006)
+ *   1c credit           any other credit               excluded, conf 1.0
  *   2  user_override    (tenant,user,match_key)        conf 1.0
  *   2b tenant_override  (tenant,match_key)             conf 0.98
  *   3  mcc              ISO 18245 → taxonomy           conf 0.95
@@ -20,10 +23,12 @@ import {
 } from "@moroku-enrich/taxonomy";
 import { normaliseMerchant, type NormalisedMerchant } from "./normaliser.js";
 import { ENGINE_VERSION, TAXONOMY_VERSION } from "./version.js";
-import { CATEGORY } from "./categories.js";
+import { CATEGORY, NON_EXPENSE } from "./categories.js";
 import { isExclusion } from "./exclusions.js";
 import { lookupMcc } from "./mcc.js";
 import { applyRules, RULES_CONFIDENCE } from "./rules.js";
+import { isExplicitSavingsMovement, resolveSavingsOutcome } from "./savings.js";
+import { recogniseIncome, INCOME_CONFIDENCE } from "./income.js";
 import type {
   CategoriseInput,
   ChainOptions,
@@ -33,9 +38,9 @@ import type {
 } from "./types.js";
 
 /** Category returned by the exclusion tier (spec §4 step 1). */
-const TRANSFER_CATEGORY = "transfer";
-/** Category returned for credits (spec §2; v1 debits-only, income is phase 2). */
-const CREDIT_CATEGORY = "uncategorised_credit";
+const TRANSFER_CATEGORY = NON_EXPENSE.TRANSFER;
+/** Category returned for a credit that income recognition did not claim. */
+const CREDIT_CATEGORY = NON_EXPENSE.UNCATEGORISED_CREDIT;
 /** Fallback bucket (kickoff: one of the 16, forced essential on this path). */
 const FALLBACK_CATEGORY = CATEGORY.OTHER_EXPENSES;
 /** The conservative fallback is always essential — never discretionary (spec §1.3, kickoff). */
@@ -102,28 +107,60 @@ export function categorise(
   const lowConfidenceThreshold =
     options.lowConfidenceThreshold ?? DEFAULT_LOW_CONFIDENCE_THRESHOLD;
   const llmTrustThreshold = options.llmTrustThreshold ?? DEFAULT_LLM_TRUST_THRESHOLD;
+  // ext-006 tiers default ON. The switch exists so the tier can be turned off
+  // from config without a code change or redeploy of the engine — the same
+  // posture as the LLM tier — if Kanopi's shadow diff needs to be quietened
+  // while their client learns the new ids.
+  const incomeSavingsEnabled = options.incomeSavingsEnabled ?? true;
   const merchant = normaliseMerchant(input.description);
   const common = { lowConfidenceThreshold };
 
-  // 1 — Exclusions. Returned, not dropped.
-  if (isExclusion(input)) {
+  // 1 — Exclusions. Returned, not dropped. ext-006 subtypes a savings movement
+  // into savings_deposit / savings_withdrawal where the direction is
+  // unambiguous; everything else (ATM, cash advance, generic transfer) stays
+  // `transfer`, and a savings movement whose direction can't be established
+  // stays `transfer` too. The outcome is excluded either way, so no spend
+  // denominator moves.
+  //
+  // The second arm catches real deposits the exclusion patterns miss — "AUTO
+  // SAVE TO SAVINGS" carries no TRANSFER/TFR token. It requires the direction
+  // to be stated in the description; `account_type: "savings"` alone is NOT
+  // enough to promote a transaction here, or every card purchase made from a
+  // savings account would be booked as a deposit.
+  const explicitSavings = incomeSavingsEnabled && isExplicitSavingsMovement(input);
+  if (isExclusion(input) || explicitSavings) {
+    const savings = incomeSavingsEnabled ? resolveSavingsOutcome(input) : undefined;
+    const category = savings ?? TRANSFER_CATEGORY;
     return build(
-      "exclusion",
-      TRANSFER_CATEGORY,
-      resolveClassification(TRANSFER_CATEGORY),
+      savings ? "savings" : "exclusion",
+      category,
+      resolveClassification(category),
       1.0,
       merchant,
       { excluded: true, ...common },
     );
   }
 
-  // 1b — Credits. v1 processes debits; a credit (amount > 0) that is not an
-  // explicit transfer is returned as uncategorised_credit, excluded like a
-  // transfer so it never reaches the expense tiers or the fallback (which would
-  // pollute confident_pct and the fallback-rate alarm). Classification is the
-  // taxonomy default, exactly as for the transfer outcome. Income recognition
-  // proper is phase 2 (spec §2).
+  // 1b — Credits. A credit (amount > 0) that is not an explicit transfer is
+  // offered to income recognition first (ext-006, spec §2 pulled forward from
+  // phase 2); anything unrecognised falls through to uncategorised_credit
+  // exactly as before. Both are excluded like a transfer so they never reach
+  // the expense tiers or the fallback (which would pollute confident_pct and
+  // the fallback-rate alarm). Classification is the taxonomy default.
   if (typeof input.amount === "number" && input.amount > 0) {
+    if (incomeSavingsEnabled) {
+      const income = recogniseIncome(merchant, input);
+      if (income) {
+        return build(
+          "income",
+          income.category,
+          resolveClassification(income.category),
+          INCOME_CONFIDENCE,
+          merchant,
+          { excluded: true, ...common },
+        );
+      }
+    }
     return build(
       "credit",
       CREDIT_CATEGORY,

@@ -105,6 +105,9 @@ describe("POST /v1/categorise handler", () => {
     const res = await makeCategoriseHandler(repo, cfg)(
       event({
         transactions: [
+          // ext-006: PAYROLL is now recognised as income, so this asserts the
+          // income path. Both are credits and both stay excluded — which is the
+          // property this test is really about.
           { id: "1", description: "PAYROLL ACME", amount: 5000 },
           { id: "2", description: "ZZZ MYSTERY SHOP", amount: -9 },
         ],
@@ -112,8 +115,8 @@ describe("POST /v1/categorise handler", () => {
     );
     const body = JSON.parse(res.body as string);
     const credit = body.results.find((r: { id: string }) => r.id === "1");
-    expect(credit.source).toBe("credit");
-    expect(credit.category).toBe("uncategorised_credit");
+    expect(credit.source).toBe("income");
+    expect(credit.category).toBe("income");
     expect(credit.excluded).toBe(true);
     // confident_pct denominator is spend only: the lone debit fell back → 0%.
     expect(body.summary.confident_pct).toBe(0);

@@ -1,8 +1,11 @@
 # Moroku Enrich — Build Status & Handover
 
-_Last updated: 2026-08-04. Phase 1 (core service) + extensions 001–004 applied,
-LLM tier live, and **deployed to dev** (engine 1.2.0). Reader is assumed to have
-the spec
+_Last updated: 2026-08-15. Phase 1 (core service) + extensions 001–004 applied,
+LLM tier live, and **deployed to dev** (engine 1.2.0). **ext-006 (Odyssey
+taxonomy additions) is applied in the repo and NOT yet deployed** — engine
+1.3.0, taxonomy 1.1. Read `docs/extensions/moroku-enrich-ext-006-odyssey-taxonomy.md`
+§8 before deploying it: four result classes move, and Kanopi's shadow client
+maps the old 15 ids. Reader is assumed to have the spec
 (`docs/moroku-enrich-spec.md`), the two extension specs (`docs/extensions/`), and
 this repo, but none of the originating conversation. Read this file top to bottom
 before writing code._
@@ -50,20 +53,35 @@ First dev deploy done 2026-08-03 into the Moroku Dev Sandbox
 
 ## 1. What is built and working
 
-`npm run build` (`tsc --build`, all projects), `npm test` (**159 pass, 0 todo**)
-and `npm run synth` (`cdk synth`, dev) are all **green**, and the stack is
-deployed to dev (§0).
+`npm run build` (`tsc --build`, all projects), `npm test` (**185 pass, 0 todo**)
+and `npm run synth` (`cdk synth`, dev) are all **green**. The stack is deployed
+to dev at engine 1.2.0 (§0); ext-006 (engine 1.3.0) is committed but undeployed.
 
 - **Monorepo** — npm workspaces: `packages/{taxonomy,engine,service-lib}`,
   `services/{authorizer,categorise,corrections,read,classifier,promotion}`,
   `infra`, `scripts`. TypeScript strict, Vitest, Prettier.
-- **Taxonomy v1** (`packages/taxonomy`) — **15 verbatim Kanopi categories** +
-  default classifications (ext-002 §1). Guard test asserts `.toBe(15)`. Plus the
-  non-expense outcomes `transfer` / `uncategorised_credit`.
+- **Taxonomy 1.1** (`packages/taxonomy`) — the **15 verbatim Kanopi categories**
+  + default classifications (ext-002 §1), plus **`bnpl`** and
+  **`general_retail`** (ext-006). Guard test asserts `.toBe(17)`, and a separate
+  test pins the original 15 ids/classifications unchanged so the additive
+  guarantee is enforced rather than assumed. Non-expense outcomes: `transfer`,
+  `uncategorised_credit`, and (ext-006) `income`, `savings_deposit`,
+  `savings_withdrawal` — all `excluded: true`.
 - **Engine** (`packages/engine`, pure, zero AWS):
   - Merchant normaliser (37 tests).
-  - Full spec §4 signal chain: exclusion → **credit** → user/tenant override →
-    MCC → dictionary → rules → llm_cache → fallback. Injected `LookupContext`.
+  - Full spec §4 signal chain: exclusion → **savings** → **income** → **credit**
+    → user/tenant override → MCC → dictionary → rules → llm_cache → fallback.
+    Injected `LookupContext`.
+  - **Savings subtyping** (ext-006): directed savings movements return
+    `savings_deposit` / `savings_withdrawal`, still excluded. Direction comes
+    from the amount sign when `account_type: "savings"`, otherwise from the
+    description's direction word — the sign is the counterparty's view and is
+    NOT authoritative. `account_type` alone never promotes an ordinary
+    transaction; directionless movements stay `transfer`.
+  - **Income recognition** (ext-006): salary/payroll/wage/benefit credits return
+    `income` at 0.9, excluded. Matches the RAW description as well as the
+    normalised key — the normaliser strips location tokens, which would
+    otherwise destroy agency cues like `SERVICES AUSTRALIA`.
   - **Credit branch**: amount > 0 → `uncategorised_credit`, `excluded: true`,
     source `credit`, confidence 1.0 (income recognition proper is phase 2).
     Excluded results (transfers + credits) are removed from `confident_pct` and
@@ -109,8 +127,10 @@ deployed to dev (§0).
   (`scripts/migrate-normaliser-keys.ts`, run against dev — 16 re-keyed, 1 merge);
   (5) corrections accept `transfer` as a target (user override → excluded).
   All verified live over `enrich.moroku.digital`.
-- **Income recognition** (spec §2 phase 2) — credits are returned as
-  `uncategorised_credit`; salary/benefit recognition is later.
+- **Income recognition — DONE** (ext-006, pulled forward from phase 2).
+  Unrecognised credits still return `uncategorised_credit`. Granularity is a
+  single `income` id per spec §2; a finer breakdown (dividend/invoice/drawings)
+  is not built and has no rule signal on real bank data.
 - **ext-001 §4 deferred items** — trial-corrections quarantine, developer-
   agreement workflow, one-time secret-link delivery, invoicing, ops portal. The
   schema already carries every field these need; do NOT build them now.
@@ -150,6 +170,12 @@ deployed to dev (§0).
 Both prior flags are resolved: the credit branch (step 1) and the blocked
 taxonomy/rules inputs (ext-002). No open questions block the build.
 
+**One decision to sequence, not resolve (ext-006 §8):** Kanopi's shadow client
+maps the old 15 ids. Deploy ext-006, confirm the shadow diff contains exactly
+the four documented result-class moves and nothing else, then update Kanopi's
+mapping. `INCOME_SAVINGS_ENABLED=false` in SSM reverts the behavioural half
+without a code change if the diff is noisier than expected.
+
 ## 5. Next concrete steps, in order
 
 1. **First dev deploy — DONE** (§0). Stack live, Kanopi seeded (test+live),
@@ -162,6 +188,15 @@ taxonomy/rules inputs (ext-002). No open questions block the build.
    (re-enables the classifier's SQS event source).
 3. **Kanopi cutover** (spec §7) — shared client, delete duplicate engines,
    corrections wiring, learning-table migration, report trust number.
+4. **Deploy ext-006** — no key migration needed (the normaliser is unchanged, so
+   no `match_key` moves and every stored row stays valid). Standard redeploy;
+   remember `--context llmTier=on` or the LLM tier goes off (§0).
+5. **Odyssey integration** — Odyssey is enrich customer #2 but has no tenant,
+   and the service is dev-only. Its live population is *simulated* (BOB emits a
+   ground-truth `merchantCategory`), so that population should reach the enrich
+   vocabulary through a deterministic crosswalk, not through enrich's inference:
+   the dictionary, rules and normaliser are built for real bank descriptors and
+   would fall back hard on synthetic ones. Real bank feeds call the API.
 
 ## 6. Gotchas
 
@@ -180,6 +215,6 @@ taxonomy/rules inputs (ext-002). No open questions block the build.
 ```
 npm install
 npm run build   # tsc --build, all projects — must stay green
-npm test        # 159 tests, all pass
+npm test        # 185 tests, all pass
 npm run synth   # cdk synth (dev) — must pass; does NOT deploy
 ```

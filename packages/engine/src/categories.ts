@@ -45,13 +45,37 @@ export const CATEGORY = {
   CLOTHING: "clothing",
   HEALTHCARE: "healthcare",
   OTHER_EXPENSES: "other_expenses",
+  // --- ext-006 additions ---
+  BNPL: "bnpl",
+  GENERAL_RETAIL: "general_retail",
 } as const;
 
 /** A category id as referenced by engine code. */
 export type CategoryRef = (typeof CATEGORY)[keyof typeof CATEGORY];
 
+/**
+ * Non-expense outcome ids. Kept separate from CATEGORY so `CategoryRef` (the
+ * type the MCC table and rules target) stays expense-only — an MCC row must
+ * never resolve to `transfer` or `income`. The chain previously carried these
+ * as bare string literals; ext-006 brings them under the registry so the
+ * "never a raw string" rule holds on every path.
+ */
+export const NON_EXPENSE = {
+  TRANSFER: "transfer",
+  UNCATEGORISED_CREDIT: "uncategorised_credit",
+  INCOME: "income",
+  SAVINGS_DEPOSIT: "savings_deposit",
+  SAVINGS_WITHDRAWAL: "savings_withdrawal",
+} as const;
+
+/** A non-expense outcome id. */
+export type NonExpenseRef = (typeof NON_EXPENSE)[keyof typeof NON_EXPENSE];
+
 /** Every registry value, for reconciliation. */
-export const ALL_PLACEHOLDER_CATEGORIES: readonly string[] = Object.values(CATEGORY);
+export const ALL_PLACEHOLDER_CATEGORIES: readonly string[] = [
+  ...Object.values(CATEGORY),
+  ...Object.values(NON_EXPENSE),
+];
 
 /**
  * Reconcile the registry against the authoritative taxonomy. Returns any

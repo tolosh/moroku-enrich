@@ -43,13 +43,32 @@ export const RULES: readonly Rule[] = [
     pattern: /\b(cinema|cinemas|hoyts|event cinemas|village cinemas|ticketek|ticketmaster)\b/,
     category: CATEGORY.DINING_ENTERTAINMENT,
   },
+  {
+    // ext-006. Sits with the priority cues because a BNPL instalment is a
+    // scheduled obligation wherever it appears, and because `afterpay` /
+    // `zip pay` previously resolved to loan_repayment via rule 3 — this rule
+    // takes them over (same classification, sharper category).
+    //
+    // Note the normaliser strips `ZIP *` as a GATEWAY prefix, so `ZIP*BIGW`
+    // normalises to `bigw` and is correctly treated as the underlying purchase,
+    // not a BNPL repayment. Only the spaced/suffixed brand forms reach here.
+    // `latitude` (bare) deliberately stays on rule 3: Latitude writes personal
+    // loans as well as LatitudePay.
+    id: "P3-bnpl",
+    pattern:
+      /\b(afterpay|zip pay|zippay|zip money|zipmoney|zip co|klarna|humm|hummgroup|openpay|payright|sezzle|latitude ?pay|brighte)\b/,
+    category: CATEGORY.BNPL,
+  },
 
   // --- Brand chain ---
   { id: "1-mortgage", codes: ["MRTG"], pattern: /\b(mortgage|home loan)\b/, category: CATEGORY.MORTGAGE },
   { id: "2-rent", codes: ["RNT"], pattern: /\brent(al)?\b/, category: CATEGORY.RENT },
   {
+    // ext-006: afterpay / zip pay / zippay moved up to P3-bnpl. `latitude`
+    // stays — Latitude Financial writes personal loans, and the BNPL brand is
+    // matched by its explicit `latitudepay` form in P3.
     id: "3-loan",
-    pattern: /\b(personal loan|car loan|loan repayment|afterpay|zip pay|zippay|latitude|plenti|harmoney)\b/,
+    pattern: /\b(personal loan|car loan|loan repayment|latitude|plenti|harmoney)\b/,
     category: CATEGORY.LOAN_REPAYMENT,
   },
   {
@@ -130,6 +149,16 @@ export const RULES: readonly Rule[] = [
     pattern:
       /\b(medical|health|pharmacy|chemist|doctor|dental|dentist|physio|optometrist|terry white|priceline)\b/,
     category: CATEGORY.HEALTHCARE,
+  },
+  {
+    // ext-006. LAST in the chain by design: it is the broadest net here, so
+    // every more specific rule — including 11-subscriptions, which must keep
+    // `amazon prime` — gets first refusal. Department stores that sell mostly
+    // apparel (myer, kmart, target, big w) stay on 13-clothing, unchanged.
+    id: "15-general-retail",
+    pattern:
+      /\b(jb hi-?fi|jbhifi|harvey norman|the good guys|officeworks|bunnings|ikea|amazon (?:au|marketplace)|catch\.com|temu|ebay|department store)\b/,
+    category: CATEGORY.GENERAL_RETAIL,
   },
 ];
 

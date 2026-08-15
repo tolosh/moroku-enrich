@@ -12,6 +12,8 @@ export * from "./normaliser.js";
 export * from "./categories.js";
 export * from "./types.js";
 export * from "./exclusions.js";
+export * from "./savings.js";
+export * from "./income.js";
 export * from "./mcc.js";
 export * from "./rules.js";
 export * from "./chain.js";

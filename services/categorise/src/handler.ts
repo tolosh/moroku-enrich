@@ -58,6 +58,7 @@ export function makeCategoriseHandler(repo: Repository, cfg: Config) {
       const r = categorise(txn, ctx, {
         lowConfidenceThreshold: cfg.lowConfidenceThreshold,
         llmTrustThreshold: cfg.llmTrustThreshold,
+        incomeSavingsEnabled: cfg.incomeSavingsEnabled,
       });
       return { id: txn.id, ...r };
     });

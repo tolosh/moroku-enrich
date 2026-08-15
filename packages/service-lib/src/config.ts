@@ -18,6 +18,8 @@ export interface Config {
   lowConfidenceThreshold: number;
   llmTrustThreshold: number;
   llmTierEnabled: boolean;
+  /** ext-006 income recognition + savings subtyping. Defaults ON. */
+  incomeSavingsEnabled: boolean;
   promptVersion: string;
   tenantPromotionMinUsers: number;
   globalPromotionMinTenants: number;
@@ -48,6 +50,9 @@ export function loadConfig(): Config {
     lowConfidenceThreshold: num("LOW_CONFIDENCE_THRESHOLD", 0.8),
     llmTrustThreshold: num("LLM_TRUST_THRESHOLD", 0.6),
     llmTierEnabled: (process.env.LLM_TIER_ENABLED ?? "false") === "true",
+    // Defaults ON (note the inverted default vs LLM_TIER_ENABLED): ext-006 is
+    // part of the engine, and the env var exists only as a kill switch.
+    incomeSavingsEnabled: (process.env.INCOME_SAVINGS_ENABLED ?? "true") === "true",
     promptVersion: process.env.PROMPT_VERSION ?? "1",
     tenantPromotionMinUsers: num("TENANT_PROMOTION_MIN_USERS", 3),
     globalPromotionMinTenants: num("GLOBAL_PROMOTION_MIN_TENANTS", 2),
