@@ -41,3 +41,25 @@ export function isExclusion(input: CategoriseInput): boolean {
   const desc = (input.description ?? "").toUpperCase();
   return EXCLUSION_PATTERNS.some((re) => re.test(desc));
 }
+
+/** Cash-withdrawal forms, for the venue proxy below (ext-008 §7). */
+const CASH_WITHDRAWAL_PATTERNS: readonly RegExp[] = [
+  /\bWITHDRAWAL\b/,
+  /\bATM\b/,
+  /\bCASH\s+OUT\b/,
+];
+
+/** Licensed-venue cues — a known proxy for poker-machine spend (ext-008 §7). */
+export const VENUE_CASH_CUE = /\b(?:HOTEL|RSL|LEAGUES|TAVERN|CLUB)\b/;
+
+/**
+ * True for an ATM / cash withdrawal at a licensed venue (hotel / RSL / leagues /
+ * tavern / club) — a known proxy for poker-machine spend. The chain keeps the
+ * excluded `transfer` outcome but attaches a low-confidence
+ * `venue_cash_withdrawal` flag (ext-008 §7): we flag rather than reclassify, so
+ * ordinary ATM traffic is untouched.
+ */
+export function isVenueCashWithdrawal(input: CategoriseInput): boolean {
+  const desc = (input.description ?? "").toUpperCase();
+  return CASH_WITHDRAWAL_PATTERNS.some((re) => re.test(desc)) && VENUE_CASH_CUE.test(desc);
+}

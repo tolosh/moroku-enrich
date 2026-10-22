@@ -9,6 +9,9 @@ import type { NormalisedMerchant } from "./normaliser.js";
 
 /** The tier that produced a result (spec §3.1 `source`). First hit wins. */
 export type Source =
+  // ext-008: gambling / crypto detection, evaluated before every other tier so it
+  // can tag inflows (and transfer/BPAY deposits) that would otherwise short-circuit.
+  | "high_risk"
   | "exclusion"
   | "savings"
   | "credit"
@@ -42,6 +45,18 @@ export interface CategoriseInput {
   account_type?: string | undefined;
   /** Opaque per-tenant user id — enables user-scoped overrides. */
   user_ref?: string | undefined;
+  // --- ext-008 (ENR-25): extra identity fields the gambling/crypto detector
+  // matches on. Open-banking feeds carry these; statement/DocuScan feeds set
+  // only `description`. All fold into the detector's haystack except
+  // `biller_code`, which is matched exactly against the BPAY biller table. ---
+  /** Cleaner merchant/payee name when the feed separates it from `description`. */
+  merchant_name?: string | undefined;
+  /** Free-text payment reference (e.g. a PayID transfer narrative). */
+  reference?: string | undefined;
+  /** BPAY biller display name. */
+  biller_name?: string | undefined;
+  /** BPAY biller code — matched exactly against the biller table. */
+  biller_code?: string | undefined;
 }
 
 /** A user- or tenant-scoped override row (spec §4 steps 2 / 2b). */
@@ -108,6 +123,18 @@ export interface EnrichResult {
   merchant: NormalisedMerchant;
   engine_version: string;
   taxonomy_version: string;
+  // --- ext-008 (ENR-25) ---
+  /**
+   * Cash-flow direction from the sign of `amount`: "in" for a credit, "out" for
+   * a debit, omitted when `amount` is absent. Lets a consumer net gambling
+   * deposits against winnings and keep crypto buys separate from sells.
+   */
+  direction?: "in" | "out";
+  /**
+   * The id of the rule/MCC/biller that produced the tag, for traceability
+   * (spec §6). Set for high_risk, rules and income hits; absent otherwise.
+   */
+  matched_rule_id?: string;
 }
 
 /** A lookup context that resolves nothing — for tests and empty batches. */

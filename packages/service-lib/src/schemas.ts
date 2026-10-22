@@ -45,6 +45,11 @@ export const TransactionSchema = z.object({
   source_category_description: z.string().optional(),
   account_type: z.enum(["transaction", "credit_card", "savings"]).optional(),
   user_ref: z.string().optional(),
+  // ext-008 (ENR-25): extra identity fields the gambling/crypto detector reads.
+  merchant_name: z.string().optional(),
+  reference: z.string().optional(),
+  biller_name: z.string().optional(),
+  biller_code: z.string().optional(),
 });
 
 export const CategoriseRequestSchema = z.object({

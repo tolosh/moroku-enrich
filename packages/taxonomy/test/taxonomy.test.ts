@@ -21,9 +21,9 @@ describe("taxonomy v1 — frozen invariants (spec §2)", () => {
     ]);
   });
 
-  it("is version 1.2 — additive within major 1 (ext-006, ext-007)", () => {
-    expect(TAXONOMY_VERSION).toBe("1.2");
-    // The major must not have moved: ext-006/ext-007 rename, remove and
+  it("is version 1.3 — additive within major 1 (ext-006, ext-007, ext-008)", () => {
+    expect(TAXONOMY_VERSION).toBe("1.3");
+    // The major must not have moved: ext-006/ext-007/ext-008 rename, remove and
     // re-classify nothing — they only append categories.
     expect(TAXONOMY_VERSION.split(".")[0]).toBe("1");
   });
@@ -36,6 +36,9 @@ describe("taxonomy v1 — frozen invariants (spec §2)", () => {
     expect(ids).toContain("income");
     expect(ids).toContain("savings_deposit");
     expect(ids).toContain("savings_withdrawal");
+    // ext-008 — crypto flows are excluded outcomes, not expense categories
+    expect(ids).toContain("crypto_exchange");
+    expect(ids).toContain("crypto_atm");
   });
 
   it("marks every non-expense outcome as excluded — none of them are spend", () => {
@@ -62,15 +65,15 @@ describe("taxonomy v1 — frozen invariants (spec §2)", () => {
 
   it("serves a well-formed taxonomy document", () => {
     const doc = taxonomyDocument();
-    expect(doc.taxonomy_version).toBe("1.2");
+    expect(doc.taxonomy_version).toBe("1.3");
     expect(doc.categories).toEqual(allCategories());
   });
 });
 
 describe("taxonomy v1 — expense category list (decision §9.1, ext-002 §0)", () => {
-  it(`has exactly ${EXPECTED_EXPENSE_CATEGORY_COUNT} expense categories (15 verbatim + 2 ext-006 + 4 ext-007)`, () => {
+  it(`has exactly ${EXPECTED_EXPENSE_CATEGORY_COUNT} expense categories (15 verbatim + 2 ext-006 + 4 ext-007 + 4 ext-008)`, () => {
     expect(EXPENSE_CATEGORIES.length).toBe(EXPECTED_EXPENSE_CATEGORY_COUNT);
-    expect(EXPENSE_CATEGORIES.length).toBe(21);
+    expect(EXPENSE_CATEGORIES.length).toBe(25);
   });
 
   it("preserves the 15 verbatim Kanopi ids unchanged (ext-002 §1 still holds)", () => {
@@ -130,6 +133,11 @@ describe("taxonomy v1 — expense category list (decision §9.1, ext-002 §0)", 
       wage_advance: "financial_commitment",
       debt_collection: "financial_commitment",
       fines_penalties: "essential",
+      // ext-008 (ENR-25)
+      gambling_wagering: "discretionary",
+      gambling_casino: "discretionary",
+      gambling_lottery: "discretionary",
+      quasi_cash: "discretionary",
     });
   });
 

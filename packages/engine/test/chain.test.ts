@@ -229,7 +229,7 @@ describe("conservative fallback (spec §4 step 7, kickoff)", () => {
   it("stamps engine and taxonomy versions on every result", () => {
     const r = categorise(base, EMPTY_LOOKUPS);
     expect(r.engine_version).toMatch(/^\d+\.\d+\.\d+$/);
-    expect(r.taxonomy_version).toBe("1.2");
+    expect(r.taxonomy_version).toBe("1.3");
     expect(r.merchant.match_key).toBe("the daily grind");
   });
 });

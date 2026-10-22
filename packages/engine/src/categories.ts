@@ -53,6 +53,11 @@ export const CATEGORY = {
   WAGE_ADVANCE: "wage_advance",
   DEBT_COLLECTION: "debt_collection",
   FINES_PENALTIES: "fines_penalties",
+  // --- ext-008 additions: gambling & quasi-cash (ENR-25) ---
+  GAMBLING_WAGERING: "gambling_wagering",
+  GAMBLING_CASINO: "gambling_casino",
+  GAMBLING_LOTTERY: "gambling_lottery",
+  QUASI_CASH: "quasi_cash",
 } as const;
 
 /** A category id as referenced by engine code. */
@@ -71,6 +76,9 @@ export const NON_EXPENSE = {
   INCOME: "income",
   SAVINGS_DEPOSIT: "savings_deposit",
   SAVINGS_WITHDRAWAL: "savings_withdrawal",
+  // --- ext-008 additions: crypto flows, excluded both directions (ENR-25) ---
+  CRYPTO_EXCHANGE: "crypto_exchange",
+  CRYPTO_ATM: "crypto_atm",
 } as const;
 
 /** A non-expense outcome id. */

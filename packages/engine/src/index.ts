@@ -16,4 +16,5 @@ export * from "./savings.js";
 export * from "./income.js";
 export * from "./mcc.js";
 export * from "./rules.js";
+export * from "./high-risk-flow.js";
 export * from "./chain.js";
