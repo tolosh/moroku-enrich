@@ -25,16 +25,26 @@
  */
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocumentClient, PutCommand } from "@aws-sdk/lib-dynamodb";
-import { CATEGORY, normaliseMerchant } from "@moroku-enrich/engine";
+import { CATEGORY, HIGH_RISK_SEED_GROUPS, normaliseMerchant } from "@moroku-enrich/engine";
 import { parseArgs } from "./args.js";
 
 /** Confidence for a seeded merchant — dictionary strength, above the rules floor. */
 const SEED_CONFIDENCE = 0.95;
+/**
+ * ext-008 gambling/crypto brands seed at the brand-alone confidence (0.80) that
+ * the high-risk detection tier would assign (high-risk-flow.ts). The detection
+ * tier runs ahead of the dictionary and supersedes these rows at runtime (it can
+ * bump to 0.95 with a consistent MCC and handle inflows); the seed exists so the
+ * dictionary carries a floor and GET /v1/merchants/{key} resolves them.
+ */
+const HIGH_RISK_SEED_CONFIDENCE = 0.8;
 
 interface SeedGroup {
   category: string;
   /** Canonical brand display names; each is normalised to its match_key. */
   brands: readonly string[];
+  /** Override for this group; defaults to SEED_CONFIDENCE. */
+  confidence?: number;
 }
 
 /**
@@ -105,6 +115,13 @@ const SEED_GROUPS: readonly SeedGroup[] = [
       "Revenue SA",
     ],
   },
+  // --- ext-008 (ENR-25): gambling & crypto brands, seeded at 0.80. One source
+  // of truth with high-risk-flow.ts (HIGH_RISK_SEED_GROUPS). ---
+  ...HIGH_RISK_SEED_GROUPS.map((g) => ({
+    category: g.category,
+    brands: g.brands,
+    confidence: HIGH_RISK_SEED_CONFIDENCE,
+  })),
 ];
 
 type SeedRow = {
@@ -137,7 +154,7 @@ function buildRows(): SeedRow[] {
         match_key,
         category: group.category,
         canonical_name: brand,
-        confidence: SEED_CONFIDENCE,
+        confidence: group.confidence ?? SEED_CONFIDENCE,
         source: "seed",
         updated_at: now,
       });
@@ -155,9 +172,9 @@ async function main(): Promise<void> {
   const doc = DynamoDBDocumentClient.from(new DynamoDBClient({ region }));
 
   const rows = buildRows();
-  console.log(`\n[${table}] seeding ${rows.length} merchant rows (source "seed", conf ${SEED_CONFIDENCE})`);
+  console.log(`\n[${table}] seeding ${rows.length} merchant rows (source "seed")`);
   for (const r of rows) {
-    console.log(`  ${r.match_key.padEnd(28)} -> ${r.category}  (${r.canonical_name})`);
+    console.log(`  ${r.match_key.padEnd(28)} -> ${r.category}  @${r.confidence}  (${r.canonical_name})`);
   }
   if (!apply) {
     console.log(`\n  (dry run — pass --apply to write)`);

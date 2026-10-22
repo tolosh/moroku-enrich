@@ -30,9 +30,23 @@ export const RULES_VERSION = "1.3.0";
 export const INCOME_VERSION = "1.0.0";
 // 1.0.0 (ext-006): savings deposit/withdrawal subtyping inside the exclusion tier.
 export const SAVINGS_VERSION = "1.0.0";
+// 1.0.0 (ext-007): high-risk lending priority cues live in rules.ts (RULES_VERSION).
+// 1.0.0 (ext-008): gambling & crypto detection — a dedicated tier (high-risk-flow.ts)
+// that owns its own brands, MCCs and biller codes plus the variable confidence
+// model (0.95/0.80/0.80/0.50), so mcc.ts and rules.ts are deliberately untouched.
+export const HIGH_RISK_VERSION = "1.0.0";
 
 /**
  * The released engine semver. Bump when any component above changes.
+ *
+ * 1.5.0 (ext-008) — MINOR: gambling & crypto-exchange recognition. Four new
+ * expense categories (gambling_wagering/casino/lottery, quasi_cash) and two
+ * excluded outcomes (crypto_exchange, crypto_atm); a new detection tier
+ * (HIGH_RISK_VERSION 1.0.0) that tags INFLOWS without ever calling them income
+ * and carries a variable confidence model; new input fields (merchant_name,
+ * reference, biller_name, biller_code) and output fields (direction,
+ * matched_rule_id). Additive within taxonomy major 1 (TAXONOMY 1.3). Replay
+ * determinism preserved: engine_version is stamped on every result.
  *
  * 1.4.0 (ext-007) — MINOR: four new expense categories (sacc_loan,
  * wage_advance, debt_collection, fines_penalties) with curated AU brand cues
@@ -48,7 +62,7 @@ export const SAVINGS_VERSION = "1.0.0";
  * `bnpl`). Replay determinism is preserved because engine_version is stamped on
  * every result — a historical batch re-run on 1.2.0 still reproduces exactly.
  */
-export const ENGINE_VERSION = "1.4.0";
+export const ENGINE_VERSION = "1.5.0";
 
 /**
  * The taxonomy version this engine build targets. Re-exported from the

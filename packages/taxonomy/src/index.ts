@@ -19,7 +19,7 @@
  * never hard-code it. Changes are additive-only within a major version.
  */
 
-export const TAXONOMY_VERSION = "1.2";
+export const TAXONOMY_VERSION = "1.3";
 
 /** The three expense classifications (spec §2). Frozen for v1. */
 export const CLASSIFICATIONS = ["essential", "discretionary", "financial_commitment"] as const;
@@ -44,9 +44,11 @@ export interface CategoryDef {
 }
 
 /**
- * The 21 expense categories: the 15 Kanopi originals frozen verbatim
- * (decision §9.1, corrected to 15 by ext-002 §0), the two ext-006 additions, and
- * the four ext-007 high-risk lending categories (ENR-24).
+ * The 25 expense categories: the 15 Kanopi originals frozen verbatim
+ * (decision §9.1, corrected to 15 by ext-002 §0), the two ext-006 additions,
+ * the four ext-007 high-risk lending categories (ENR-24), and the four ext-008
+ * gambling / quasi-cash categories (ENR-25). Crypto flows are excluded outcomes,
+ * so they live in NON_EXPENSE_OUTCOMES, not here.
  * Identifiers for 1–15 are exactly as in Kanopi's engine; default
  * classifications are as that engine assigns them (ext-002 §1). Labels are
  * display strings only.
@@ -95,6 +97,20 @@ export const EXPENSE_CATEGORIES: readonly CategoryDef[] = [
   // `fines_penalties`: statutory and non-discretionary, but not ongoing credit —
   // `essential` is the conservative least-wrong classification (ENR-24, to confirm).
   cat("fines_penalties", "Fines & Penalties", "essential"),
+  // --- ext-008 (additive): gambling & quasi-cash (ENR-25) ---
+  // Gambling is the strongest behavioural red flag in an RG 209 assessment.
+  // `discretionary`, never essential. Lottery is split from wagering so a weekly
+  // ticket is not scored like sports betting. These default `excluded: false`
+  // (a deposit is discretionary spend); the chain overrides `excluded: true` on
+  // gambling INFLOWS (winnings) so they never inflate spend — a per-direction
+  // decision the static taxonomy cannot carry. Crypto flows are excluded in
+  // both directions, so they are non-expense outcomes below, not here.
+  cat("gambling_wagering", "Gambling — Wagering", "discretionary"),
+  cat("gambling_casino", "Gambling — Casino", "discretionary"),
+  cat("gambling_lottery", "Gambling — Lottery", "discretionary"),
+  // `quasi_cash`: the low-confidence MCC-only fallback for quasi-cash codes
+  // (6050/6051/6540) with no brand match. Discretionary.
+  cat("quasi_cash", "Quasi-Cash", "discretionary"),
 ];
 
 function cat(
@@ -147,13 +163,21 @@ export const NON_EXPENSE_OUTCOMES: readonly CategoryDef[] = [
   // not spend, and the spend denominators must not move.
   nonExpense("savings_deposit", "Savings Deposit"),
   nonExpense("savings_withdrawal", "Savings Withdrawal"),
+  // --- ext-008 (additive): crypto flows (ENR-25) ---
+  // Exchange buys/sells and crypto ATMs. Excluded from living expenses in BOTH
+  // directions — speculative flow, not a living cost. Kept here (not as expense
+  // categories) so they stay out of the spend / confident_pct denominators, and
+  // so a crypto SALE inflow is never mistaken for income. `crypto_atm` is split
+  // out because crypto ATMs matter for scam detection.
+  nonExpense("crypto_exchange", "Crypto Exchange"),
+  nonExpense("crypto_atm", "Crypto ATM"),
 ];
 
 /**
  * Expected count of expense categories: 15 verbatim Kanopi (decision §9.1,
- * corrected by ext-002 §0) + 2 additive (ext-006).
+ * corrected by ext-002 §0) + 2 (ext-006) + 4 (ext-007) + 4 (ext-008).
  */
-export const EXPECTED_EXPENSE_CATEGORY_COUNT = 21;
+export const EXPECTED_EXPENSE_CATEGORY_COUNT = 25;
 
 /** All categories (expense + non-expense). */
 export function allCategories(): readonly CategoryDef[] {

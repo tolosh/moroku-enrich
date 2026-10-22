@@ -4,6 +4,7 @@
  * job. Every input path runs the full chain; statements simply have no MCC, so
  * step 3 is skipped for them.
  *
+ *   0  high_risk        gambling / crypto (ext-008)    conf 0.95/0.80/0.50
  *   1  exclusion        transfer/ATM/cash-advance      excluded, conf 1.0
  *   1a savings          directed savings movement      excluded, conf 1.0  (ext-006)
  *   1b income           recognised salary/benefit      excluded, conf 0.9  (ext-006)
@@ -24,11 +25,12 @@ import {
 import { normaliseMerchant, type NormalisedMerchant } from "./normaliser.js";
 import { ENGINE_VERSION, TAXONOMY_VERSION } from "./version.js";
 import { CATEGORY, NON_EXPENSE } from "./categories.js";
-import { isExclusion } from "./exclusions.js";
+import { isExclusion, isVenueCashWithdrawal } from "./exclusions.js";
 import { lookupMcc } from "./mcc.js";
 import { applyRules, RULES_CONFIDENCE } from "./rules.js";
 import { isExplicitSavingsMovement, resolveSavingsOutcome } from "./savings.js";
 import { recogniseIncome, INCOME_CONFIDENCE } from "./income.js";
+import { detectHighRiskFlow } from "./high-risk-flow.js";
 import type {
   CategoriseInput,
   ChainOptions,
@@ -68,7 +70,13 @@ function build(
   classification: Classification,
   confidence: number,
   merchant: NormalisedMerchant,
-  opts: { excluded?: boolean; flags?: string[]; lowConfidenceThreshold: number },
+  opts: {
+    excluded?: boolean | undefined;
+    flags?: string[];
+    lowConfidenceThreshold: number;
+    direction?: "in" | "out" | undefined;
+    matchedRuleId?: string | undefined;
+  },
 ): EnrichResult {
   const flags = [...(opts.flags ?? [])];
   // Fallback already signals uncertainty via `unverified`; don't double-flag it.
@@ -92,6 +100,10 @@ function build(
     merchant,
     engine_version: ENGINE_VERSION,
     taxonomy_version: TAXONOMY_VERSION,
+    // ext-008: direction (from the amount sign) and the matched rule id, both
+    // omitted when absent so a consumer never sees a null field.
+    ...(opts.direction ? { direction: opts.direction } : {}),
+    ...(opts.matchedRuleId ? { matched_rule_id: opts.matchedRuleId } : {}),
   };
 }
 
@@ -113,7 +125,44 @@ export function categorise(
   // while their client learns the new ids.
   const incomeSavingsEnabled = options.incomeSavingsEnabled ?? true;
   const merchant = normaliseMerchant(input.description);
-  const common = { lowConfidenceThreshold };
+  // ext-008: cash-flow direction from the sign of the amount. Carried on every
+  // result, and the pivot for the per-direction `excluded` decision below.
+  const direction: "in" | "out" | undefined =
+    typeof input.amount === "number"
+      ? input.amount > 0
+        ? "in"
+        : input.amount < 0
+          ? "out"
+          : undefined
+      : undefined;
+  const common = { lowConfidenceThreshold, direction };
+
+  // 0 — High-risk flow (ext-008). Gambling / crypto detection runs BEFORE every
+  // other tier so it can tag INFLOWS (winnings, crypto sales) — which the credit
+  // branch would otherwise book as income/uncategorised_credit — and deposits
+  // arriving as a transfer / PayID / BPAY, which the exclusion tier would
+  // otherwise swallow. This also beats the override tiers; that matches the
+  // existing exclusion/credit-before-override short-circuit (ext-006 §10) and is
+  // deliberate — a correction cannot currently hide a gambling/crypto flow.
+  const highRisk = detectHighRiskFlow(merchant, input);
+  if (highRisk) {
+    // Gambling inflows (winnings) and all crypto flows are excluded from spend;
+    // a gambling debit (a deposit) is discretionary spend, and quasi_cash keeps
+    // its taxonomy default. undefined → build derives from the taxonomy.
+    const excluded =
+      highRisk.category.startsWith("crypto_") ||
+      (highRisk.category.startsWith("gambling_") && direction === "in")
+        ? true
+        : undefined;
+    return build(
+      "high_risk",
+      highRisk.category,
+      resolveClassification(highRisk.category),
+      highRisk.confidence,
+      merchant,
+      { excluded, matchedRuleId: highRisk.matchedRuleId, ...common },
+    );
+  }
 
   // 1 — Exclusions. Returned, not dropped. ext-006 subtypes a savings movement
   // into savings_deposit / savings_withdrawal where the direction is
@@ -131,13 +180,17 @@ export function categorise(
   if (isExclusion(input) || explicitSavings) {
     const savings = incomeSavingsEnabled ? resolveSavingsOutcome(input) : undefined;
     const category = savings ?? TRANSFER_CATEGORY;
+    // ext-008 §7: an ATM/cash withdrawal at a licensed venue (hotel/RSL/club) is
+    // a known poker-machine proxy. Keep the excluded transfer outcome but flag
+    // it — flagging rather than reclassifying leaves ordinary ATM traffic alone.
+    const venueFlag = !savings && isVenueCashWithdrawal(input) ? ["venue_cash_withdrawal"] : [];
     return build(
       savings ? "savings" : "exclusion",
       category,
       resolveClassification(category),
       1.0,
       merchant,
-      { excluded: true, ...common },
+      { excluded: true, ...(venueFlag.length ? { flags: venueFlag } : {}), ...common },
     );
   }
 
@@ -157,7 +210,7 @@ export function categorise(
           resolveClassification(income.category),
           INCOME_CONFIDENCE,
           merchant,
-          { excluded: true, ...common },
+          { excluded: true, matchedRuleId: income.ruleId, ...common },
         );
       }
     }
@@ -232,7 +285,7 @@ export function categorise(
       resolveClassification(rule.category),
       RULES_CONFIDENCE,
       merchant,
-      common,
+      { matchedRuleId: rule.ruleId, ...common },
     );
   }
 
