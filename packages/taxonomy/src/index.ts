@@ -16,10 +16,15 @@
  * must tolerate ids they do not know; that is what `GET /v1/taxonomy` is for.
  *
  * The taxonomy is versioned and served by GET /v1/taxonomy so consuming apps
- * never hard-code it. Changes are additive-only within a major version.
+ * never hard-code it. Changes are additive-only within a major version — with
+ * one deliberate exception at 1.4 (ENR-26): `fines_penalties`, introduced days
+ * earlier at 1.2, is re-classified `essential` → `financial_commitment`. This is
+ * a correction caught before any affordability consumer relied on it, not a
+ * re-class of a stable category, so it rides a MINOR bump rather than a major;
+ * the engine_version bump (1.6.0) keeps replay deterministic.
  */
 
-export const TAXONOMY_VERSION = "1.3";
+export const TAXONOMY_VERSION = "1.4";
 
 /** The three expense classifications (spec §2). Frozen for v1. */
 export const CLASSIFICATIONS = ["essential", "discretionary", "financial_commitment"] as const;
@@ -94,9 +99,13 @@ export const EXPENSE_CATEGORIES: readonly CategoryDef[] = [
   cat("sacc_loan", "Small Amount Credit (SACC)", "financial_commitment"),
   cat("wage_advance", "Wage Advance", "financial_commitment"),
   cat("debt_collection", "Debt Collection", "financial_commitment"),
-  // `fines_penalties`: statutory and non-discretionary, but not ongoing credit —
-  // `essential` is the conservative least-wrong classification (ENR-24, to confirm).
-  cat("fines_penalties", "Fines & Penalties", "essential"),
+  // `fines_penalties`: `financial_commitment` (ENR-26, confirmed by Colin). The
+  // lending-signals affordability engine builds living expenses (GLE) from
+  // essential/basic spend and counts commitments separately, so this keeps fines
+  // OUT of living expenses — a one-off fine must not inflate monthly GLE across
+  // the lookback, and a fine paid in instalments is picked up as a repayment.
+  // (`essential` would distort DSR/NDI; `discretionary` would imply it's cuttable.)
+  cat("fines_penalties", "Fines & Penalties", "financial_commitment"),
   // --- ext-008 (additive): gambling & quasi-cash (ENR-25) ---
   // Gambling is the strongest behavioural red flag in an RG 209 assessment.
   // `discretionary`, never essential. Lottery is split from wagering so a weekly

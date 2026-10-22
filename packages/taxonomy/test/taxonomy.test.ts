@@ -21,10 +21,11 @@ describe("taxonomy v1 — frozen invariants (spec §2)", () => {
     ]);
   });
 
-  it("is version 1.3 — additive within major 1 (ext-006, ext-007, ext-008)", () => {
-    expect(TAXONOMY_VERSION).toBe("1.3");
-    // The major must not have moved: ext-006/ext-007/ext-008 rename, remove and
-    // re-classify nothing — they only append categories.
+  it("is version 1.4 — additive, with the ENR-26 fines reclassification", () => {
+    expect(TAXONOMY_VERSION).toBe("1.4");
+    // Major unchanged. 1.1–1.3 were purely additive; 1.4 also re-classifies the
+    // days-old fines_penalties (essential → financial_commitment, ENR-26) — a
+    // correction before any consumer relied on it, so it stays within major 1.
     expect(TAXONOMY_VERSION.split(".")[0]).toBe("1");
   });
 
@@ -65,7 +66,7 @@ describe("taxonomy v1 — frozen invariants (spec §2)", () => {
 
   it("serves a well-formed taxonomy document", () => {
     const doc = taxonomyDocument();
-    expect(doc.taxonomy_version).toBe("1.3");
+    expect(doc.taxonomy_version).toBe("1.4");
     expect(doc.categories).toEqual(allCategories());
   });
 });
@@ -128,11 +129,11 @@ describe("taxonomy v1 — expense category list (decision §9.1, ext-002 §0)", 
       // ext-006
       bnpl: "financial_commitment",
       general_retail: "discretionary",
-      // ext-007 (ENR-24)
+      // ext-007 (ENR-24); fines_penalties re-classified in ext-009 (ENR-26)
       sacc_loan: "financial_commitment",
       wage_advance: "financial_commitment",
       debt_collection: "financial_commitment",
-      fines_penalties: "essential",
+      fines_penalties: "financial_commitment",
       // ext-008 (ENR-25)
       gambling_wagering: "discretionary",
       gambling_casino: "discretionary",
