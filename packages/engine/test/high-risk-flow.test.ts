@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { categorise } from "../src/chain.js";
-import { detectHighRiskFlow } from "../src/high-risk-flow.js";
+import {
+  detectHighRiskFlow,
+  billerCodesDueForReview,
+  BILLER_CODES,
+} from "../src/high-risk-flow.js";
 import { normaliseMerchant } from "../src/normaliser.js";
 import { EMPTY_LOOKUPS } from "../src/types.js";
 import { FIXTURES } from "./fixtures/gambling-crypto.fixture.js";
@@ -160,5 +164,40 @@ describe("ext-008: venue cash-withdrawal flag (spec §7)", () => {
   it("does not flag an ordinary ATM withdrawal", () => {
     const r = run({ description: "ATM WITHDRAWAL MAIN ST", amount: -100 });
     expect(r.flags).not.toContain("venue_cash_withdrawal");
+  });
+});
+
+describe("ext-010 (ENR-27): BPAY biller codes", () => {
+  it("TABtouch biller code 1214 → gambling_wagering via the biller table", () => {
+    // No brand token in the text, so the biller code is the only signal — this
+    // isolates the biller-table path (a real line carrying the brand name would
+    // match the brand rule first, to the same category).
+    const r = run({ description: "BPAY PAYMENT RACING ACCT", biller_code: "1214", amount: -75 });
+    expect(r.category).toBe("gambling_wagering");
+    expect(r.source).toBe("high_risk");
+    expect(r.matched_rule_id).toBe("biller-tabtouch-1214");
+    expect(r.confidence).toBe(0.8);
+  });
+
+  it("Sportsbet biller code 89672 still resolves", () => {
+    const r = run({ description: "BPAY PAYMENT", biller_code: "89672", amount: -40 });
+    expect(r.category).toBe("gambling_wagering");
+    expect(r.matched_rule_id).toBe("biller-sportsbet-89672");
+  });
+
+  it("every biller entry carries provenance (source/date/url)", () => {
+    for (const [code, e] of Object.entries(BILLER_CODES)) {
+      expect(e.source, code).toMatch(/^(published|confirmed)$/);
+      expect(e.found_date, code).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      expect(e.source_url, code).toMatch(/^https?:\/\//);
+    }
+  });
+
+  it("billerCodesDueForReview surfaces published codes past their review date, not before", () => {
+    // Before any review_after (both seeded 2027-01-20): nothing due.
+    expect(billerCodesDueForReview(new Date("2026-11-01"))).toEqual([]);
+    // After: both published codes come due.
+    const due = billerCodesDueForReview(new Date("2027-02-01")).map((d) => d.code).sort();
+    expect(due).toEqual(["1214", "89672"]);
   });
 });

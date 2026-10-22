@@ -114,14 +114,80 @@ const GAMBLING_MCC: Readonly<Record<string, string>> = {
 const QUASI_CASH_MCC: ReadonlySet<string> = new Set(["6050", "6051", "6540"]);
 
 /**
- * BPAY biller codes → sub-category. A biller code is a brand-strength signal.
- * SEED — validate against real data: only Sportsbet's code (89672) is published
- * and verifiable today; collect the rest from each operator's deposit page or
- * from real transaction data. Codes are per-biller and can change.
+ * A BPAY biller-code entry (ext-010 / ENR-27). A biller code is a brand-strength
+ * signal: it identifies the biller (it is fixed per biller; the customer is
+ * identified by the per-account CRN, which we neither need nor store).
+ *
+ * `source` is the lifecycle: `published` = sourced from the operator's own page
+ * but not yet seen in real data; `confirmed` = matched a real transaction. A
+ * `published` code carries `review_after` (found + 90 days): if it has not been
+ * promoted to `confirmed` by then it is surfaced by `billerCodesDueForReview()`
+ * for a human to recheck or drop. Promotion happens operationally when a hit is
+ * observed; auto-promotion via usage telemetry is a documented follow-up.
  */
-const BILLER_CODES: Readonly<Record<string, { category: string; id: string }>> = {
-  "89672": { category: CATEGORY.GAMBLING_WAGERING, id: "biller-sportsbet-89672" },
+export interface BillerCodeEntry {
+  category: string;
+  /** matched_rule_id surfaced on a hit. */
+  id: string;
+  brand: string;
+  source: "published" | "confirmed";
+  /** ISO date the code was sourced / last reviewed. */
+  found_date: string;
+  /** Where the code was published. */
+  source_url: string;
+  /** published only: recheck/drop if unseen in real data by this date (found + 90d). */
+  review_after?: string;
+}
+
+/**
+ * BPAY biller codes → sub-category. Only two fixed codes are publicly
+ * verifiable (ENR-27 research, 2026-10-22): Sportsbet and TABtouch. Every other
+ * operator that offers BPAY surfaces its code only inside the logged-in cashier
+ * (per-account), so it cannot be sourced from public pages; most exchanges and
+ * the betr-platform wagering brands offer no BPAY at all (see the ext-010 doc
+ * for the full list). Extend as real transaction data confirms codes.
+ */
+export const BILLER_CODES: Readonly<Record<string, BillerCodeEntry>> = {
+  "89672": {
+    category: CATEGORY.GAMBLING_WAGERING,
+    id: "biller-sportsbet-89672",
+    brand: "Sportsbet",
+    source: "published",
+    found_date: "2026-10-22",
+    source_url:
+      "https://helpcentre.sportsbet.com.au/hc/en-us/articles/18421939318925",
+    review_after: "2027-01-20",
+  },
+  "1214": {
+    category: CATEGORY.GAMBLING_WAGERING,
+    id: "biller-tabtouch-1214",
+    brand: "TABtouch",
+    source: "published",
+    found_date: "2026-10-22",
+    source_url: "https://help.tabtouch.com.au/knowledge-base/manage-my-funds/",
+    review_after: "2027-01-20",
+  },
 };
+
+/**
+ * Published biller codes overdue for review — sourced from a page but not yet
+ * confirmed against real data by their `review_after` date. A scheduled job (or
+ * a human) calls this to recheck or drop them. Pure; `asOf` defaults to now.
+ */
+export function billerCodesDueForReview(
+  asOf: Date = new Date(),
+): { code: string; brand: string; found_date: string; source_url: string }[] {
+  return Object.entries(BILLER_CODES)
+    .filter(
+      ([, e]) => e.source === "published" && !!e.review_after && new Date(e.review_after) <= asOf,
+    )
+    .map(([code, e]) => ({
+      code,
+      brand: e.brand,
+      found_date: e.found_date,
+      source_url: e.source_url,
+    }));
+}
 
 function familyOf(category: string): "gambling" | "crypto" | "other" {
   if (category.startsWith("gambling_")) return "gambling";
