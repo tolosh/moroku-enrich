@@ -39,6 +39,11 @@ export const HIGH_RISK_VERSION = "1.0.0";
 /**
  * The released engine semver. Bump when any component above changes.
  *
+ * 1.6.0 (ext-009) — MINOR: `fines_penalties` re-classified essential →
+ * financial_commitment (ENR-26, taxonomy 1.4). A result's category is unchanged;
+ * its classification moves, so a fine now sits with commitments, not living
+ * expenses. Bumped (not a taxonomy-only change) so replay stays deterministic.
+ *
  * 1.5.0 (ext-008) — MINOR: gambling & crypto-exchange recognition. Four new
  * expense categories (gambling_wagering/casino/lottery, quasi_cash) and two
  * excluded outcomes (crypto_exchange, crypto_atm); a new detection tier
@@ -62,7 +67,7 @@ export const HIGH_RISK_VERSION = "1.0.0";
  * `bnpl`). Replay determinism is preserved because engine_version is stamped on
  * every result — a historical batch re-run on 1.2.0 still reproduces exactly.
  */
-export const ENGINE_VERSION = "1.5.0";
+export const ENGINE_VERSION = "1.6.0";
 
 /**
  * The taxonomy version this engine build targets. Re-exported from the
