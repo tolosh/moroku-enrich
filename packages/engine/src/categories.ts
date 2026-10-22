@@ -48,6 +48,11 @@ export const CATEGORY = {
   // --- ext-006 additions ---
   BNPL: "bnpl",
   GENERAL_RETAIL: "general_retail",
+  // --- ext-007 additions: high-risk lending signals (ENR-24) ---
+  SACC_LOAN: "sacc_loan",
+  WAGE_ADVANCE: "wage_advance",
+  DEBT_COLLECTION: "debt_collection",
+  FINES_PENALTIES: "fines_penalties",
 } as const;
 
 /** A category id as referenced by engine code. */

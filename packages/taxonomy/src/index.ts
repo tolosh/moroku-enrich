@@ -19,7 +19,7 @@
  * never hard-code it. Changes are additive-only within a major version.
  */
 
-export const TAXONOMY_VERSION = "1.1";
+export const TAXONOMY_VERSION = "1.2";
 
 /** The three expense classifications (spec §2). Frozen for v1. */
 export const CLASSIFICATIONS = ["essential", "discretionary", "financial_commitment"] as const;
@@ -44,8 +44,9 @@ export interface CategoryDef {
 }
 
 /**
- * The 17 expense categories: the 15 Kanopi originals frozen verbatim
- * (decision §9.1, corrected to 15 by ext-002 §0) plus the two ext-006 additions.
+ * The 21 expense categories: the 15 Kanopi originals frozen verbatim
+ * (decision §9.1, corrected to 15 by ext-002 §0), the two ext-006 additions, and
+ * the four ext-007 high-risk lending categories (ENR-24).
  * Identifiers for 1–15 are exactly as in Kanopi's engine; default
  * classifications are as that engine assigns them (ext-002 §1). Labels are
  * display strings only.
@@ -83,6 +84,17 @@ export const EXPENSE_CATEGORIES: readonly CategoryDef[] = [
   // --- ext-006 (additive) ---
   cat("bnpl", "Buy Now Pay Later", "financial_commitment"),
   cat("general_retail", "General Retail", "discretionary"),
+  // --- ext-007 (additive): high-risk lending signals (ENR-24) ---
+  // The merchants a responsible-lending / RG 209 assessment weights most. Each
+  // needs its own id so the signal survives — folding a payday loan into
+  // `loan_repayment` or a collector into `other_expenses` loses exactly the
+  // flag a reviewer wants. BNPL already has `bnpl` (ext-006).
+  cat("sacc_loan", "Small Amount Credit (SACC)", "financial_commitment"),
+  cat("wage_advance", "Wage Advance", "financial_commitment"),
+  cat("debt_collection", "Debt Collection", "financial_commitment"),
+  // `fines_penalties`: statutory and non-discretionary, but not ongoing credit —
+  // `essential` is the conservative least-wrong classification (ENR-24, to confirm).
+  cat("fines_penalties", "Fines & Penalties", "essential"),
 ];
 
 function cat(
@@ -141,7 +153,7 @@ export const NON_EXPENSE_OUTCOMES: readonly CategoryDef[] = [
  * Expected count of expense categories: 15 verbatim Kanopi (decision §9.1,
  * corrected by ext-002 §0) + 2 additive (ext-006).
  */
-export const EXPECTED_EXPENSE_CATEGORY_COUNT = 17;
+export const EXPECTED_EXPENSE_CATEGORY_COUNT = 21;
 
 /** All categories (expense + non-expense). */
 export function allCategories(): readonly CategoryDef[] {

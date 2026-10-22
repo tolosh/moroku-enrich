@@ -191,7 +191,9 @@ describe("ext-006 — bnpl and general_retail", () => {
   });
 
   it("other_expenses keeps travel, personal care, services and government", () => {
-    for (const mcc of ["7011", "7230", "7311", "9211"]) {
+    // 9211/9222/9223 moved to fines_penalties in ext-007; 9311 (tax) is the
+    // government code that stays in other_expenses.
+    for (const mcc of ["7011", "7230", "7311", "9311"]) {
       expect(run("SOMETHING", { mcc }).category, mcc).toBe(CATEGORY.OTHER_EXPENSES);
     }
   });

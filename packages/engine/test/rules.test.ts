@@ -70,6 +70,38 @@ describe("merged rules chain — deviations (ext-002 §3, each pinned)", () => {
   });
 });
 
+describe("ext-007 (ENR-24): high-risk lending cues outrank the generic loan rule", () => {
+  it("SACC/payday brands → sacc_loan, not the generic 3-loan rule", () => {
+    expect(ruleFor("nimble")?.category).toBe(CATEGORY.SACC_LOAN);
+    expect(ruleFor("cash converters")?.category).toBe(CATEGORY.SACC_LOAN);
+    expect(ruleFor("wallet wizard")?.category).toBe(CATEGORY.SACC_LOAN);
+    expect(ruleFor("moneyme")?.category).toBe(CATEGORY.SACC_LOAN);
+    // P4 sits ahead of 3-loan, so a SACC lender is never swept into
+    // loan_repayment — the whole point of the category.
+    expect(ruleFor("sunshine loans")?.ruleId).toBe("P4-sacc");
+  });
+
+  it("wage-advance brands → wage_advance", () => {
+    expect(ruleFor("beforepay")?.category).toBe(CATEGORY.WAGE_ADVANCE);
+    expect(ruleFor("mypaynow")?.category).toBe(CATEGORY.WAGE_ADVANCE);
+    expect(ruleFor("commbank advancepay")?.category).toBe(CATEGORY.WAGE_ADVANCE);
+    // `advancepay` is matched specifically; a bare "cash advance" must not hit.
+    expect(ruleFor("cash advance")?.category).not.toBe(CATEGORY.WAGE_ADVANCE);
+  });
+
+  it("debt collectors → debt_collection", () => {
+    expect(ruleFor("baycorp")?.category).toBe(CATEGORY.DEBT_COLLECTION);
+    expect(ruleFor("credit corp")?.category).toBe(CATEGORY.DEBT_COLLECTION);
+    expect(ruleFor("prushka")?.category).toBe(CATEGORY.DEBT_COLLECTION);
+  });
+
+  it("fines / infringements → fines_penalties", () => {
+    expect(ruleFor("revenue nsw")?.category).toBe(CATEGORY.FINES_PENALTIES);
+    expect(ruleFor("fines victoria")?.category).toBe(CATEGORY.FINES_PENALTIES);
+    expect(ruleFor("penalty notice")?.category).toBe(CATEGORY.FINES_PENALTIES);
+  });
+});
+
 describe("ext-004 item 1: catch-all codes must not short-circuit description matching", () => {
   it("Opal Top-up + catch-all code OTHD -> transport via description (not utilities)", () => {
     expect(ruleFor("opal top-up", { code: "OTHD" })?.category).toBe(CATEGORY.TRANSPORT);
@@ -98,6 +130,10 @@ describe("merged rules chain — precedence & reachability (ext-002 §4)", () =>
       "P1-fuel": "shell fuel",
       "P2-cinema": "village cinemas",
       "P3-bnpl": "afterpay",
+      "P4-sacc": "nimble",
+      "P5-wage-advance": "beforepay",
+      "P6-debt-collection": "baycorp",
+      "P7-fines": "revenue nsw",
       "1-mortgage": "home loan repayment nab",
       "2-rent": "rental payment agent",
       "3-loan": "personal loan",

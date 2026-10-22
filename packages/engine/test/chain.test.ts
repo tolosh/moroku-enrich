@@ -229,7 +229,37 @@ describe("conservative fallback (spec §4 step 7, kickoff)", () => {
   it("stamps engine and taxonomy versions on every result", () => {
     const r = categorise(base, EMPTY_LOOKUPS);
     expect(r.engine_version).toMatch(/^\d+\.\d+\.\d+$/);
-    expect(r.taxonomy_version).toBe("1.1");
+    expect(r.taxonomy_version).toBe("1.2");
     expect(r.merchant.match_key).toBe("the daily grind");
+  });
+});
+
+describe("ext-007 (ENR-24): high-risk lending categories through the full chain", () => {
+  it("a SACC lender debit resolves to sacc_loan via the rules tier", () => {
+    const r = categorise({ ...base, description: "NIMBLE AUSTRALIA", amount: -220 }, EMPTY_LOOKUPS);
+    expect(r.source).toBe("rules");
+    expect(r.category).toBe(CATEGORY.SACC_LOAN);
+    expect(r.classification).toBe("financial_commitment");
+  });
+
+  it("a wage-advance repayment debit resolves to wage_advance", () => {
+    const r = categorise({ ...base, description: "BEFOREPAY", amount: -50 }, EMPTY_LOOKUPS);
+    expect(r.source).toBe("rules");
+    expect(r.category).toBe(CATEGORY.WAGE_ADVANCE);
+    expect(r.classification).toBe("financial_commitment");
+  });
+
+  it("a debt collector debit resolves to debt_collection", () => {
+    const r = categorise({ ...base, description: "BAYCORP COLLECTIONS", amount: -95 }, EMPTY_LOOKUPS);
+    expect(r.source).toBe("rules");
+    expect(r.category).toBe(CATEGORY.DEBT_COLLECTION);
+    expect(r.classification).toBe("financial_commitment");
+  });
+
+  it("a fines MCC (9222) resolves to fines_penalties / essential via the MCC tier", () => {
+    const r = categorise({ ...base, description: "COURT FINE PAYMENT", mcc: "9222", amount: -310 }, EMPTY_LOOKUPS);
+    expect(r.source).toBe("mcc");
+    expect(r.category).toBe(CATEGORY.FINES_PENALTIES);
+    expect(r.classification).toBe("essential");
   });
 });

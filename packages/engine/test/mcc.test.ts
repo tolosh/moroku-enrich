@@ -43,6 +43,17 @@ describe("MCC table (spec §4 step 3; completed ext-002 §5)", () => {
     expect(lookupMcc("4900")?.category).toBe(CATEGORY.UTILITIES);
   });
 
+  it("ext-007 (ENR-24): 7322 → debt_collection; fines codes → fines_penalties", () => {
+    // 7322 was previously unmapped — pure addition, no diff.
+    expect(lookupMcc("7322")?.category).toBe(CATEGORY.DEBT_COLLECTION);
+    // 9211/9222/9223 re-homed out of other_expenses — a behavioural diff.
+    for (const code of ["9211", "9222", "9223"]) {
+      expect(lookupMcc(code)?.category, code).toBe(CATEGORY.FINES_PENALTIES);
+    }
+    // 9311 (tax payments) is NOT a fine and stays in other_expenses.
+    expect(lookupMcc("9311")?.category).toBe(CATEGORY.OTHER_EXPENSES);
+  });
+
   it("every row targets a real taxonomy id (ext-002 §6.4)", () => {
     for (const [code, category] of MCC_TABLE.entries()) {
       expect(isValidCategory(category), `MCC ${code} → ${category}`).toBe(true);
