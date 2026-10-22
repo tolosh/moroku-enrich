@@ -115,10 +115,22 @@ const MCC_GROUPS: readonly MccGroup[] = [
       // professional / business services
       "7276", "7277", "7311", "7333", "7338", "7339", "7372", "7392", "7393", "7399",
       "8111", "8911", "8931", "8999",
-      // government / non-profit / misc
-      "8398", "8641", "8651", "8661", "8675", "8699", "9211", "9222", "9223", "9311",
+      // government / non-profit / misc (9211/9222/9223 moved to fines_penalties, ext-007)
+      "8398", "8641", "8651", "8661", "8675", "8699", "9311",
       "9399", "9402", "9405",
     ],
+  },
+  {
+    // ext-007 (ENR-24): debt collection agencies. No diff — 7322 was unmapped.
+    category: CATEGORY.DEBT_COLLECTION,
+    codes: ["7322"],
+  },
+  {
+    // ext-007 (ENR-24): court costs / fines / bail. Re-homed from other_expenses
+    // now that a category exists — a behavioural diff on these three codes.
+    // 9311 (tax payments) is NOT a fine and stays in other_expenses.
+    category: CATEGORY.FINES_PENALTIES,
+    codes: ["9211", "9222", "9223"],
   },
 ];
 

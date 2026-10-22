@@ -21,10 +21,10 @@ describe("taxonomy v1 — frozen invariants (spec §2)", () => {
     ]);
   });
 
-  it("is version 1.1 — additive within major 1 (ext-006)", () => {
-    expect(TAXONOMY_VERSION).toBe("1.1");
-    // The major must not have moved: ext-006 renames, removes and
-    // re-classifies nothing.
+  it("is version 1.2 — additive within major 1 (ext-006, ext-007)", () => {
+    expect(TAXONOMY_VERSION).toBe("1.2");
+    // The major must not have moved: ext-006/ext-007 rename, remove and
+    // re-classify nothing — they only append categories.
     expect(TAXONOMY_VERSION.split(".")[0]).toBe("1");
   });
 
@@ -62,15 +62,15 @@ describe("taxonomy v1 — frozen invariants (spec §2)", () => {
 
   it("serves a well-formed taxonomy document", () => {
     const doc = taxonomyDocument();
-    expect(doc.taxonomy_version).toBe("1.1");
+    expect(doc.taxonomy_version).toBe("1.2");
     expect(doc.categories).toEqual(allCategories());
   });
 });
 
 describe("taxonomy v1 — expense category list (decision §9.1, ext-002 §0)", () => {
-  it(`has exactly ${EXPECTED_EXPENSE_CATEGORY_COUNT} expense categories (15 verbatim + 2 ext-006)`, () => {
+  it(`has exactly ${EXPECTED_EXPENSE_CATEGORY_COUNT} expense categories (15 verbatim + 2 ext-006 + 4 ext-007)`, () => {
     expect(EXPENSE_CATEGORIES.length).toBe(EXPECTED_EXPENSE_CATEGORY_COUNT);
-    expect(EXPENSE_CATEGORIES.length).toBe(17);
+    expect(EXPENSE_CATEGORIES.length).toBe(21);
   });
 
   it("preserves the 15 verbatim Kanopi ids unchanged (ext-002 §1 still holds)", () => {
@@ -102,7 +102,7 @@ describe("taxonomy v1 — expense category list (decision §9.1, ext-002 §0)", 
     expect(Object.keys(verbatim).length).toBe(15);
   });
 
-  it("has the exact ids and default classifications (ext-002 §1 + ext-006)", () => {
+  it("has the exact ids and default classifications (ext-002 §1 + ext-006 + ext-007)", () => {
     const byId = Object.fromEntries(
       EXPENSE_CATEGORIES.map((c) => [c.id, c.default_classification]),
     );
@@ -125,6 +125,11 @@ describe("taxonomy v1 — expense category list (decision §9.1, ext-002 §0)", 
       // ext-006
       bnpl: "financial_commitment",
       general_retail: "discretionary",
+      // ext-007 (ENR-24)
+      sacc_loan: "financial_commitment",
+      wage_advance: "financial_commitment",
+      debt_collection: "financial_commitment",
+      fines_penalties: "essential",
     });
   });
 

@@ -59,6 +59,45 @@ export const RULES: readonly Rule[] = [
       /\b(afterpay|zip pay|zippay|zip money|zipmoney|zip co|klarna|humm|hummgroup|openpay|payright|sezzle|latitude ?pay|brighte)\b/,
     category: CATEGORY.BNPL,
   },
+  {
+    // ext-007 (ENR-24). High-risk lending cues, ahead of the brand chain so a
+    // SACC/payday loan is tagged as such rather than collapsing into the generic
+    // `3-loan` rule (loan_repayment). Curated AU brand seeds — REPLACEABLE,
+    // extend from real Kanopi data. Conf 0.70 like every rules hit; the seed
+    // (scripts/seed-merchants.ts) lifts the common brands to dictionary strength.
+    id: "P4-sacc",
+    pattern:
+      /\b(nimble|cash ?converters|wallet wizard|moneyme|money me|sunshine loans|credit24|ferratum|cigno|jacaranda finance|fair ?go finance|swoosh finance|speckle|fundo|beyond cash|good ?2 ?go)\b/,
+    category: CATEGORY.SACC_LOAN,
+  },
+  {
+    // Earned-wage-access / pay-advance. NB the chain only reaches the rules tier
+    // on debits: a wage ADVANCE is an inflow and is handled by the income/credit
+    // tier first, so this tags the repayment/fee debit, not the advance itself.
+    // `advancepay` is matched specifically — a bare `advance` would collide with
+    // "cash advance" (an exclusion).
+    id: "P5-wage-advance",
+    pattern:
+      /\b(beforepay|mypaynow|my pay now|advancepay|commbank advancepay|earnd|wagetap|wage tap|payactiv|wagestream)\b/,
+    category: CATEGORY.WAGE_ADVANCE,
+  },
+  {
+    // Debt collectors / buyers. Bare short forms (arl, ccs) are deliberately
+    // omitted to avoid false positives; match the full agency names.
+    id: "P6-debt-collection",
+    pattern:
+      /\b(baycorp|credit ?corp|panthera|milton graham|pioneer credit|collection house|recoveries corp|complete credit solutions|prushka|probe group|indebted|arl collect|lion finance)\b/,
+    category: CATEGORY.DEBT_COLLECTION,
+  },
+  {
+    // Fines / infringements / statutory penalties. `revenue nsw` (fines) not bare
+    // `service nsw` (also licensing/rego). Tolls are transport, not fines, so no
+    // toll brands here.
+    id: "P7-fines",
+    pattern:
+      /\b(revenue nsw|fines victoria|state debt recovery|sdro|revenue sa|revenuesa|infringement|penalty notice|court fine)\b/,
+    category: CATEGORY.FINES_PENALTIES,
+  },
 
   // --- Brand chain ---
   { id: "1-mortgage", codes: ["MRTG"], pattern: /\b(mortgage|home loan)\b/, category: CATEGORY.MORTGAGE },
