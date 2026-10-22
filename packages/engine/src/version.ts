@@ -34,10 +34,16 @@ export const SAVINGS_VERSION = "1.0.0";
 // 1.0.0 (ext-008): gambling & crypto detection — a dedicated tier (high-risk-flow.ts)
 // that owns its own brands, MCCs and biller codes plus the variable confidence
 // model (0.95/0.80/0.80/0.50), so mcc.ts and rules.ts are deliberately untouched.
-export const HIGH_RISK_VERSION = "1.0.0";
+// 1.1.0 (ext-010): BPAY biller-code table gains provenance (source/date/url) and
+// the published->confirmed lifecycle; adds TABtouch (1214) alongside Sportsbet.
+export const HIGH_RISK_VERSION = "1.1.0";
 
 /**
  * The released engine semver. Bump when any component above changes.
+ *
+ * 1.7.0 (ext-010) — MINOR: BPAY biller-code table gains provenance and the
+ * published→confirmed lifecycle, and adds TABtouch (1214). A biller code now
+ * resolves to gambling_wagering where it previously fell through.
  *
  * 1.6.0 (ext-009) — MINOR: `fines_penalties` re-classified essential →
  * financial_commitment (ENR-26, taxonomy 1.4). A result's category is unchanged;
@@ -67,7 +73,7 @@ export const HIGH_RISK_VERSION = "1.0.0";
  * `bnpl`). Replay determinism is preserved because engine_version is stamped on
  * every result — a historical batch re-run on 1.2.0 still reproduces exactly.
  */
-export const ENGINE_VERSION = "1.6.0";
+export const ENGINE_VERSION = "1.7.0";
 
 /**
  * The taxonomy version this engine build targets. Re-exported from the
